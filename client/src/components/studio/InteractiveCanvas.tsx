@@ -5,6 +5,9 @@ import {
   ZoomOut,
   RotateCcw,
   Maximize2,
+  Minimize2,
+  PanelRight,
+  PanelLeft,
   Plus,
   Trash2,
   Copy,
@@ -608,6 +611,24 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
+  const [inspectorPos, setInspectorPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem('bbot_inspector_pos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+  const [isDraggingInspector, setIsDraggingInspector] = useState<boolean>(false);
+  const [isInspectorMinimized, setIsInspectorMinimized] = useState<boolean>(false);
+  const [isInspectorWide, setIsInspectorWide] = useState<boolean>(false);
+  const inspectorDragOffsetRef = useRef<{ offsetX: number; offsetY: number }>({ offsetX: 0, offsetY: 0 });
 
   // Canvas Tool Mode: select (V), hand (H), marquee (M)
   const [activeCanvasTool, setActiveCanvasTool] = useState<'select' | 'hand' | 'marquee'>('select');
@@ -2609,6 +2630,118 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
   // Currently selected entities
   const selectedNode = selectedNodeId ? nodeMap.get(selectedNodeId) : null;
   const selectedEdge = selectedEdgeId ? (diagram.edges || []).find((e) => e.id === selectedEdgeId) : null;
+
+  // Floating Draggable & Flexible Inspector Handlers
+  const getEffectiveInspectorPos = () => {
+    const panelWidth = isInspectorWide ? 384 : 320;
+    const panelHeight = isInspectorMinimized ? 44 : 480;
+
+    if (inspectorPos && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const minX = 10;
+      const maxX = Math.max(minX, rect.width - panelWidth - 10);
+      const minY = 10;
+      const maxY = Math.max(minY, rect.height - panelHeight - 10);
+      return {
+        x: Math.max(minX, Math.min(inspectorPos.x, maxX)),
+        y: Math.max(minY, Math.min(inspectorPos.y, maxY)),
+      };
+    }
+
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      // Smart Auto-Placement: Check where the selected item is on screen
+      if (selectedNode) {
+        const nodeScreenX = (selectedNode.x ?? 100) * zoom + pan.x;
+        // If node is on right side of canvas, place inspector on left side to prevent covering it!
+        if (nodeScreenX > rect.width * 0.45) {
+          return { x: 16, y: 64 };
+        }
+      }
+      return { x: Math.max(16, rect.width - panelWidth - 16), y: 64 };
+    }
+
+    return { x: 20, y: 64 };
+  };
+
+  const handleToggleInspectorDock = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const panelWidth = isInspectorWide ? 384 : 320;
+      const current = getEffectiveInspectorPos();
+      const isCurrentlyLeft = current.x < rect.width / 2;
+      const nextPos = isCurrentlyLeft
+        ? { x: Math.max(16, rect.width - panelWidth - 16), y: 64 }
+        : { x: 16, y: 64 };
+      setInspectorPos(nextPos);
+      try {
+        localStorage.setItem('bbot_inspector_pos', JSON.stringify(nextPos));
+      } catch {}
+    }
+  };
+
+  const handleResetInspectorPos = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInspectorPos(null);
+    try {
+      localStorage.removeItem('bbot_inspector_pos');
+    } catch {}
+  };
+
+  const handleInspectorDragStart = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('textarea')) {
+      return;
+    }
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDraggingInspector(true);
+    const eff = getEffectiveInspectorPos();
+    inspectorDragOffsetRef.current = {
+      offsetX: e.clientX - eff.x,
+      offsetY: e.clientY - eff.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDraggingInspector) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      let nextX = e.clientX - inspectorDragOffsetRef.current.offsetX;
+      let nextY = e.clientY - inspectorDragOffsetRef.current.offsetY;
+
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const panelWidth = isInspectorWide ? 384 : 320;
+        const panelHeight = isInspectorMinimized ? 44 : 100;
+        const minX = 8;
+        const maxX = Math.max(minX, rect.width - panelWidth - 8);
+        const minY = 8;
+        const maxY = Math.max(minY, rect.height - panelHeight - 8);
+
+        nextX = Math.max(minX, Math.min(nextX, maxX));
+        nextY = Math.max(minY, Math.min(nextY, maxY));
+      }
+
+      const newPos = { x: nextX, y: nextY };
+      setInspectorPos(newPos);
+      try {
+        localStorage.setItem('bbot_inspector_pos', JSON.stringify(newPos));
+      } catch {}
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingInspector(false);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isDraggingInspector, isInspectorMinimized, isInspectorWide]);
 
   return (
     <div
@@ -4624,30 +4757,113 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
         </div>
       </div>
 
-      {/* Floating Inspector Panel for Selected Node */}
-      {selectedNode && isInspectorOpen && !readOnly && !isExporting && (
-        <div
-          data-interactive="true"
-          className="absolute right-4 top-16 bottom-4 w-80 max-w-[calc(100vw-2rem)] z-40 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-3 duration-200"
-        >
-          {/* Header */}
-          <div className="p-3 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <Sliders size={14} className="text-amber-400" />
-              <span className="font-bold text-xs text-[var(--text-primary)]">Box Inspector & Styling</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsInspectorOpen(false)}
-              className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] cursor-pointer"
-              title="Close Panel"
-            >
-              <X size={13} />
-            </button>
-          </div>
+      {/* Floating Draggable & Flexible Inspector Panel for Selected Node */}
+      {selectedNode && isInspectorOpen && !readOnly && !isExporting && (() => {
+        const effPos = getEffectiveInspectorPos();
+        const isLeftDocked = containerRef.current ? effPos.x < containerRef.current.clientWidth / 2 : false;
 
-          {/* Body */}
-          <div className="p-3.5 flex-1 overflow-y-auto space-y-4 text-xs">
+        return (
+          <div
+            data-interactive="true"
+            style={{
+              left: `${effPos.x}px`,
+              top: `${effPos.y}px`,
+            }}
+            className={`absolute z-40 ${isInspectorWide ? 'w-96' : 'w-80'} max-w-[calc(100vw-2rem)] bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-shadow select-none ${
+              isDraggingInspector ? 'ring-2 ring-amber-500/50 shadow-amber-500/10 cursor-grabbing' : ''
+            } ${
+              isInspectorMinimized ? 'max-h-12' : 'max-h-[min(82vh,calc(100%-80px))]'
+            }`}
+          >
+            {/* Draggable Header */}
+            <div
+              onMouseDown={handleInspectorDragStart}
+              onDoubleClick={handleToggleInspectorDock}
+              className="p-2.5 px-3 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/70 flex items-center justify-between shrink-0 cursor-grab active:cursor-grabbing hover:bg-[var(--bg-primary)] transition-colors select-none group"
+              title="Drag to move panel anywhere • Double-click to toggle Left/Right dock"
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <GripVertical size={14} className="text-[var(--text-muted)] group-hover:text-amber-400 shrink-0 transition-colors" />
+                <Sliders size={13} className="text-amber-400 shrink-0" />
+                <span className="font-bold text-xs text-[var(--text-primary)] truncate">
+                  Box Inspector & Styling
+                </span>
+                {isInspectorMinimized && (
+                  <span className="text-[10px] text-amber-500 font-mono truncate max-w-[90px] bg-amber-500/10 px-1.5 py-0.5 rounded">
+                    {selectedNode.label}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-0.5 shrink-0">
+                {/* Dock side switch button */}
+                <button
+                  type="button"
+                  onClick={handleToggleInspectorDock}
+                  className="p-1 rounded-md text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                  title={isLeftDocked ? "Dock to Right side" : "Dock to Left side"}
+                >
+                  {isLeftDocked ? <PanelRight size={13} /> : <PanelLeft size={13} />}
+                </button>
+
+                {/* Reset position button (visible if moved) */}
+                {inspectorPos && (
+                  <button
+                    type="button"
+                    onClick={handleResetInspectorPos}
+                    className="p-1 rounded-md text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                    title="Reset position"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                )}
+
+                {/* Width Toggle (Compact / Wide) */}
+                {!isInspectorMinimized && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsInspectorWide((prev) => !prev);
+                    }}
+                    className="p-1 rounded-md text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                    title={isInspectorWide ? "Compact Width" : "Wider Width"}
+                  >
+                    <MoveHorizontal size={13} />
+                  </button>
+                )}
+
+                {/* Minimize / Expand Toggle */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsInspectorMinimized((prev) => !prev);
+                  }}
+                  className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                  title={isInspectorMinimized ? "Expand Inspector" : "Minimize Inspector"}
+                >
+                  {isInspectorMinimized ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+                </button>
+
+                {/* Close Panel */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsInspectorOpen(false);
+                  }}
+                  className="p-1 rounded-md text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer transition-colors ml-0.5"
+                  title="Close Inspector"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            {!isInspectorMinimized && (
+              <div className="p-3.5 flex-1 overflow-y-auto space-y-4 text-xs select-text">
             {/* Section 1: Box Title, Subtitle & Text Styling */}
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 font-bold text-[0.68rem] text-[var(--text-muted)] uppercase tracking-wider">
@@ -5503,33 +5719,103 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
               </div>
             </div>
           </div>
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* Floating Inspector Panel for Selected Edge */}
-      {selectedEdge && !readOnly && !isExporting && (
-        <div
-          data-interactive="true"
-          className="absolute right-4 top-16 bottom-4 w-80 max-w-[calc(100vw-2rem)] z-40 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-3 duration-200"
-        >
-          {/* Header */}
-          <div className="p-3 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <Link2 size={14} className="text-cyan-400" />
-              <span className="font-bold text-xs text-[var(--text-primary)]">Connection Line Inspector</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedEdgeId(null)}
-              className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
-              title="Close Panel"
-            >
-              <X size={13} />
-            </button>
-          </div>
+      {selectedEdge && !readOnly && !isExporting && (() => {
+        const effPos = getEffectiveInspectorPos();
+        const isLeftDocked = containerRef.current ? effPos.x < containerRef.current.clientWidth / 2 : false;
 
-          {/* Body */}
-          <div className="p-3.5 flex-1 overflow-y-auto space-y-4 text-xs">
+        return (
+          <div
+            data-interactive="true"
+            style={{
+              left: `${effPos.x}px`,
+              top: `${effPos.y}px`,
+            }}
+            className={`absolute z-40 ${isInspectorWide ? 'w-96' : 'w-80'} max-w-[calc(100vw-2rem)] bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-shadow select-none ${
+              isDraggingInspector ? 'ring-2 ring-cyan-500/50 shadow-cyan-500/10 cursor-grabbing' : ''
+            } ${
+              isInspectorMinimized ? 'max-h-12' : 'max-h-[min(82vh,calc(100%-80px))]'
+            }`}
+          >
+            {/* Header */}
+            <div
+              onMouseDown={handleInspectorDragStart}
+              onDoubleClick={handleToggleInspectorDock}
+              className="p-2.5 px-3 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/70 flex items-center justify-between shrink-0 cursor-grab active:cursor-grabbing hover:bg-[var(--bg-primary)] transition-colors select-none group"
+              title="Drag to move panel anywhere • Double-click to toggle Left/Right dock"
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <GripVertical size={14} className="text-[var(--text-muted)] group-hover:text-cyan-400 shrink-0 transition-colors" />
+                <Link2 size={13} className="text-cyan-400 shrink-0" />
+                <span className="font-bold text-xs text-[var(--text-primary)] truncate">Connection Line Inspector</span>
+              </div>
+
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleInspectorDock}
+                  className="p-1 rounded-md text-[var(--text-muted)] hover:text-cyan-400 hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                  title={isLeftDocked ? "Dock to Right side" : "Dock to Left side"}
+                >
+                  {isLeftDocked ? <PanelRight size={13} /> : <PanelLeft size={13} />}
+                </button>
+
+                {inspectorPos && (
+                  <button
+                    type="button"
+                    onClick={handleResetInspectorPos}
+                    className="p-1 rounded-md text-[var(--text-muted)] hover:text-cyan-400 hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                    title="Reset position"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                )}
+
+                {!isInspectorMinimized && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsInspectorWide((prev) => !prev);
+                    }}
+                    className="p-1 rounded-md text-[var(--text-muted)] hover:text-cyan-400 hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                    title={isInspectorWide ? "Compact Width" : "Wider Width"}
+                  >
+                    <MoveHorizontal size={13} />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsInspectorMinimized((prev) => !prev);
+                  }}
+                  className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+                  title={isInspectorMinimized ? "Expand Inspector" : "Minimize Inspector"}
+                >
+                  {isInspectorMinimized ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedEdgeId(null)}
+                  className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] cursor-pointer ml-0.5"
+                  title="Close Panel"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            {!isInspectorMinimized && (
+              <div className="p-3.5 flex-1 overflow-y-auto space-y-4 text-xs select-text">
             {/* Edge Label */}
             <div>
               <label className="font-bold text-[0.68rem] text-[var(--text-muted)] uppercase tracking-wider block mb-1">
@@ -5721,8 +6007,10 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
               </button>
             </div>
           </div>
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* Floating Batch Multi-Selection Dock (Figma-Style Superpower) */}
       {selectedNodeIds.length > 1 && !readOnly && !isExporting && (
