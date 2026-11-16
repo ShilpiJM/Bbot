@@ -598,3 +598,39 @@ def get_conversation_documents(conversation_id: str, repo: ConversationRepositor
         
     docs = doc_repo.get_conversation_documents(conversation_id)
     return {"documents": docs}
+
+
+# --- PDF Document Export Endpoints ---
+
+class GeneratePdfRequest(BaseModel):
+    content: str
+    title: Optional[str] = "Report Document"
+    filename_hint: Optional[str] = "report"
+
+@router.post("/export/generate-pdf")
+def generate_pdf_endpoint(req: GeneratePdfRequest, current_user: dict = Depends(get_current_user)):
+    from src.services.pdf_export_service import get_pdf_export_service
+    pdf_service = get_pdf_export_service()
+    res = pdf_service.generate_pdf(
+        content=req.content,
+        title=req.title or "Report Document",
+        filename_hint=req.filename_hint or "report",
+        author=current_user.get("username", "TRPW bbot")
+    )
+    return res
+
+@router.get("/export/pdf/{file_id}")
+def download_pdf_endpoint(file_id: str):
+    from fastapi.responses import FileResponse
+    from src.services.pdf_export_service import get_pdf_export_service
+    pdf_service = get_pdf_export_service()
+    pdf_path = pdf_service.get_pdf_path(file_id)
+    if not pdf_path or not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="Requested PDF document not found or expired.")
+    return FileResponse(
+        path=str(pdf_path),
+        media_type="application/pdf",
+        filename=f"bbot_report_{file_id}.pdf",
+        headers={"Content-Disposition": f"attachment; filename=bbot_report_{file_id}.pdf"}
+    )
+

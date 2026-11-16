@@ -26,7 +26,7 @@ import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typesc
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { ThumbsDown, ThumbsUp, Volume2, VolumeX, Copy, Check, Send, Languages, Loader2, Sparkles } from 'lucide-react';
+import { ThumbsDown, ThumbsUp, Volume2, VolumeX, Copy, Check, Send, Languages, Loader2, Sparkles, FileText, Download } from 'lucide-react';
 
 SyntaxHighlighter.registerLanguage('bash', bash);
 SyntaxHighlighter.registerLanguage('cpp', cpp);
@@ -379,6 +379,39 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeHtmlSchema]]}
             components={{
+              a({ href, children, ...props }: any) {
+                if (href && (href.startsWith('/api/export/pdf/') || href.includes('export/pdf'))) {
+                  return (
+                    <a
+                      href={href}
+                      download
+                      className="my-3 inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-orange-500/10 hover:from-red-500/20 hover:to-orange-500/20 border border-red-500/30 hover:border-red-500/60 text-[var(--text-primary)] font-semibold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer group no-underline"
+                    >
+                      <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/20 text-red-500 group-hover:scale-110 transition-transform shrink-0">
+                        <FileText size={18} />
+                      </span>
+                      <div className="flex flex-col text-left">
+                        <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-xs">
+                          {children || 'Download PDF Document'}
+                          <Download size={13} className="text-red-500 group-hover:translate-y-0.5 transition-transform" />
+                        </span>
+                        <span className="text-[10px] text-[var(--text-muted)] font-normal mt-0.5">Presentation-ready executive PDF report • Click to download</span>
+                      </div>
+                    </a>
+                  );
+                }
+                return (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium inline-flex items-center gap-0.5"
+                    {...props}
+                  >
+                    {children}
+                  </a>
+                );
+              },
               table({ children, ...props }: any) {
                 return (
                   <div className="overflow-x-auto my-4 w-full border border-[var(--border-subtle)] rounded-lg">

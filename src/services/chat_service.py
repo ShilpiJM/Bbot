@@ -326,6 +326,38 @@ class ChatService:
                 if append_text:
                     assistant_response += append_text
                     yield {"type": "text", "content": append_text}
+
+                # Check if user requested a PDF document
+                pdf_cues = [
+                    "pdf", "pdf bana", "generate a pdf", "generate pdf", "download as pdf",
+                    "download pdf", "give me a pdf", "provide a pdf", "provide pdf",
+                    "export as pdf", "export to pdf", "pdf format", "send me a pdf", "save as pdf"
+                ]
+                msg_lower = message.lower()
+                user_wants_pdf = any(c in msg_lower for c in pdf_cues)
+                if user_wants_pdf and len(assistant_response.strip()) > 30:
+                    try:
+                        from src.services.pdf_export_service import get_pdf_export_service
+                        pdf_svc = get_pdf_export_service()
+                        first_line = assistant_response.strip().split("\n")[0].strip("#* ")
+                        pdf_title = first_line[:60] if first_line else "Intelligence Report"
+                        pdf_res = pdf_svc.generate_pdf(
+                            content=assistant_response,
+                            title=pdf_title,
+                            filename_hint="bbot_report"
+                        )
+                        dl_url = pdf_res.get("download_url")
+                        filename = pdf_res.get("filename")
+                        pdf_badge = (
+                            f"\n\n---\n"
+                            f"### 📄 Your PDF Document is Ready\n"
+                            f"Here is your compiled presentation-grade PDF document:\n\n"
+                            f"[📥 Download PDF Document ({filename})]({dl_url})\n"
+                        )
+                        assistant_response += pdf_badge
+                        yield {"type": "text", "content": pdf_badge}
+                    except Exception as pdf_err:
+                        logger.warning(f"Failed to generate requested PDF: {pdf_err}")
                     
                 yield {"type": "status", "status": final_status}
                         
