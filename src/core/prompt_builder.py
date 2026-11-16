@@ -101,25 +101,33 @@ class PromptBuilder:
             sys_parts = [system_prompt or self.system_prompt]
             
             # 2. Strict Document / Web Grounding (Isolated Section)
-            if retrieved_context:
-                if is_web_search:
-                    sys_parts.append(
-                        "=== LIVE WEB SEARCH RULES ===\n"
-                        "You have access to real-time live web search results provided in the context.\n"
-                        "Use these live search results to give an accurate, up-to-date, and factually grounded response.\n"
-                        "Always cite the sources using clickable markdown links, e.g. [Source Title](URL).\n"
-                        "If the web search results do not contain enough information to answer the question, clearly state that."
-                    )
-                else:
-                    sys_parts.append(
-                        "=== DOCUMENT Q&A RULES ===\n"
-                        "use only the retrieved document context. Do not use general knowledge. Answer ONLY from the provided context.\n"
-                        "Extract and report all relevant operational steps, names, roles, procedures, and data clearly present in the context.\n"
-                        "Tolerance for variations: If the user query contains spelling mistakes, phonetic variations, or abbreviations for concepts present in the document (e.g., 'exclation' or 'escaltion' for 'escalation'), map them to the corresponding context and answer fully.\n"
-                        "If the answer is not clearly supported by the context, say 'I couldn\'t find that in the document.'\n"
-                        "Be evidence-first and comprehensive: provide complete, exhaustive explanations backed by context and state uncertainty clearly where information is missing from the document.\n"
-                        "If conversation history conflicts with this retrieved document context regarding facts within the documents, the document context takes absolute precedence."
-                    )
+            if is_web_search:
+                from datetime import datetime
+                today_str = datetime.now().strftime("%A, %d %B %Y")
+                sys_parts.append(
+                    f"=== LIVE REAL-TIME WEB SEARCH & NEWS RULES ===\n"
+                    f"TODAY'S EXACT DATE: {today_str}\n"
+                    f"You have active real-time internet search capability and live news feeds connected.\n"
+                    f"Real-time information and live news articles from today are provided directly in the reference context.\n"
+                    f"CRITICAL INSTRUCTIONS:\n"
+                    f"- NEVER say 'I do not have access to real-time data', 'my knowledge is static', or 'I cannot browse the internet'. Live web/news search results are directly provided to you.\n"
+                    f"- Directly synthesize and report the real-time facts, events, and headlines from the provided context.\n"
+                    f"- When asked for 'current affairs', 'today\'s news', or latest events, organize the key developments into clear, structured bullet points with dates and sources.\n"
+                    f"- Always cite each item with a clickable markdown link using the URL provided in the context, e.g. [Source Name](URL)."
+                )
+                sys_parts.append(
+                    "After substantive replies, you may suggest one concise, natural follow-up topic."
+                )
+            elif retrieved_context:
+                sys_parts.append(
+                    "=== DOCUMENT Q&A RULES ===\n"
+                    "use only the retrieved document context. Do not use general knowledge. Answer ONLY from the provided context.\n"
+                    "Extract and report all relevant operational steps, names, roles, procedures, and data clearly present in the context.\n"
+                    "Tolerance for variations: If the user query contains spelling mistakes, phonetic variations, or abbreviations for concepts present in the document (e.g., 'exclation' or 'escaltion' for 'escalation'), map them to the corresponding context and answer fully.\n"
+                    "If the answer is not clearly supported by the context, say 'I couldn\'t find that in the document.'\n"
+                    "Be evidence-first and comprehensive: provide complete, exhaustive explanations backed by context and state uncertainty clearly where information is missing from the document.\n"
+                    "If conversation history conflicts with this retrieved document context regarding facts within the documents, the document context takes absolute precedence."
+                )
                 sys_parts.append(
                     "After substantive replies, you may suggest one concise, natural follow-up topic."
                 )
