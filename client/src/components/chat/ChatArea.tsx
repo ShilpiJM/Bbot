@@ -22,6 +22,7 @@ interface ChatAreaProps {
   onSuggestedPrompt?: (prompt: string) => void;
   username?: string | null;
   starterQuestions?: string[];
+  onOpenCanvas?: (artifact: { id: string; title: string; content: string }) => void;
 }
 
 export function canShowSuggestedPrompts(messages: Message[], index: number, isGenerating: boolean, message: Message): boolean {
@@ -154,7 +155,7 @@ export function getSuggestedPrompts(messages: Message[], assistantIndex: number,
   return s.general(context);
 }
 
-export function ChatArea({ messages, isGenerating, botName = 'bbot', onRetry, onEdit, onDeleteMessage, documentsCount = 0, onSuggestedPrompt, username, starterQuestions }: ChatAreaProps) {
+export function ChatArea({ messages, isGenerating, botName = 'bbot', onRetry, onEdit, onDeleteMessage, documentsCount = 0, onSuggestedPrompt, username, starterQuestions, onOpenCanvas }: ChatAreaProps) {
   const { t, language } = useLanguage();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -354,6 +355,7 @@ export function ChatArea({ messages, isGenerating, botName = 'bbot', onRetry, on
                   onDismiss={onDeleteMessage ? () => onDeleteMessage(msg.id) : undefined}
                   isGenerating={isGenerating}
                   onEdit={onEdit}
+                  onOpenCanvas={onOpenCanvas}
                   suggestedPrompts={promptsToShow}
                   onSuggestedPrompt={(q) => {
                     if (isGenerating) return;

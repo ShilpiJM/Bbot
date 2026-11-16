@@ -26,7 +26,7 @@ import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typesc
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { ThumbsDown, ThumbsUp, Volume2, VolumeX, Copy, Check, Send, Languages, Loader2, Sparkles, FileText, Download } from 'lucide-react';
+import { ThumbsDown, ThumbsUp, Volume2, VolumeX, Copy, Check, Send, Languages, Loader2, Sparkles, FileText, Download, FileSpreadsheet, LayoutPanelLeft } from 'lucide-react';
 
 SyntaxHighlighter.registerLanguage('bash', bash);
 SyntaxHighlighter.registerLanguage('cpp', cpp);
@@ -112,6 +112,7 @@ interface MessageBubbleProps {
   onDismiss?: () => void;
   suggestedPrompts?: string[];
   onSuggestedPrompt?: (prompt: string) => void;
+  onOpenCanvas?: (artifact: { id: string; title: string; content: string }) => void;
 }
 
 const OPTION_CHIP_THEMES = [
@@ -159,7 +160,7 @@ const OPTION_CHIP_THEMES = [
   },
 ];
 
-function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss, isGenerating = false, onEdit, suggestedPrompts, onSuggestedPrompt }: MessageBubbleProps) {
+function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss, isGenerating = false, onEdit, suggestedPrompts, onSuggestedPrompt, onOpenCanvas }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const status = message.status ?? 'complete';
   const isTechnicalRateLimit = useMemo(() => {
@@ -182,6 +183,8 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
   const [showTranslated, setShowTranslated] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
+  const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
   const navigate = useNavigate();
 
   const handleVisualizeInStudio = () => {
@@ -227,6 +230,72 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
       alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsDownloadingPdf(false);
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    const contentToExport = showTranslated && translatedText ? translatedText : safeContent;
+    if (!contentToExport || isDownloadingExcel) return;
+    setIsDownloadingExcel(true);
+    try {
+      const firstLine = contentToExport.trim().split('\n')[0].replace(/[#*`_]/g, '').trim();
+      const title = firstLine.slice(0, 60) || 'bbot Data Export';
+      const res = await fetch('/api/export/generate-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: contentToExport,
+          title,
+          filename_hint: 'bbot_data'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.download_url) {
+          window.open(data.download_url, '_blank');
+        }
+      } else {
+        alert('Failed to generate Excel spreadsheet. Please try again.');
+      }
+    } catch (e) {
+      console.error('Excel export error:', e);
+      alert('Failed to generate Excel spreadsheet. Please try again.');
+    } finally {
+      setIsDownloadingExcel(false);
+    }
+  };
+
+  const handleDownloadDocx = async () => {
+    const contentToExport = showTranslated && translatedText ? translatedText : safeContent;
+    if (!contentToExport || isDownloadingDocx) return;
+    setIsDownloadingDocx(true);
+    try {
+      const firstLine = contentToExport.trim().split('\n')[0].replace(/[#*`_]/g, '').trim();
+      const title = firstLine.slice(0, 60) || 'bbot Intelligence Report';
+      const res = await fetch('/api/export/generate-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: contentToExport,
+          title,
+          filename_hint: 'bbot_document'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.download_url) {
+          window.open(data.download_url, '_blank');
+        }
+      } else {
+        alert('Failed to generate Word document. Please try again.');
+      }
+    } catch (e) {
+      console.error('Docx export error:', e);
+      alert('Failed to generate Word document. Please try again.');
+    } finally {
+      setIsDownloadingDocx(false);
     }
   };
 
@@ -448,10 +517,28 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
               },
               table({ children, ...props }: any) {
                 return (
-                  <div className="overflow-x-auto my-4 w-full border border-[var(--border-subtle)] rounded-lg">
-                    <table className="w-full text-left border-collapse text-sm" {...props}>
-                      {children}
-                    </table>
+                  <div className="group/tbl my-4 w-full border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-surface)] shadow-2xs">
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface-hover)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-muted)]">
+                      <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                        <FileSpreadsheet size={13} className="text-emerald-600 dark:text-emerald-400" />
+                        <span>Structured Data Table</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleDownloadExcel}
+                        disabled={isDownloadingExcel}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/20 dark:hover:bg-emerald-500/30 transition-all cursor-pointer"
+                        title="Download as Excel spreadsheet (.xlsx)"
+                      >
+                        <Download size={11} />
+                        <span>{isDownloadingExcel ? 'Exporting...' : 'Download Excel (.xlsx)'}</span>
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left border-collapse text-xs sm:text-sm" {...props}>
+                        {children}
+                      </table>
+                    </div>
                   </div>
                 );
               },
@@ -663,6 +750,22 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
                   <span>{showTranslated ? t('showOriginal') : currentLanguageOption.nativeName}</span>
                 </button>
               )}
+              {/* 🪟 1-Click Open in Canvas */}
+              {message.content && message.content.length > 20 && onOpenCanvas && (
+                <button
+                  type="button"
+                  onClick={() => onOpenCanvas({
+                    id: message.id,
+                    title: message.content.trim().split('\n')[0].replace(/[#*`_]/g, '').slice(0, 50) || 'bbot Document',
+                    content: showTranslated && translatedText ? translatedText : safeContent
+                  })}
+                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 dark:text-indigo-300 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:hover:bg-indigo-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                  title="Open this response in interactive split-screen Canvas"
+                >
+                  <LayoutPanelLeft size={12} className="text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+                  <span>Canvas</span>
+                </button>
+              )}
               {/* ✨ 1-Click Visualize in Studio Bridge */}
               {message.content && message.content.length > 20 && (
                 <button
@@ -672,7 +775,7 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
                   title="Transform this answer into an interactive visual diagram in Studio"
                 >
                   <Sparkles size={12} className="text-amber-600 dark:text-amber-400 group-hover:rotate-12 transition-transform shrink-0" />
-                  <span>Visualize in Studio</span>
+                  <span>Studio</span>
                 </button>
               )}
               {/* 📄 1-Click Download PDF */}
@@ -689,7 +792,41 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
                   ) : (
                     <FileText size={12} className="text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform shrink-0" />
                   )}
-                  <span>{isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+                  <span>{isDownloadingPdf ? 'PDF...' : 'PDF'}</span>
+                </button>
+              )}
+              {/* 📊 1-Click Download Excel (if table present) */}
+              {message.content && (message.content.includes('|') && message.content.includes('---')) && (
+                <button
+                  type="button"
+                  onClick={handleDownloadExcel}
+                  disabled={isDownloadingExcel}
+                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:hover:bg-emerald-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                  title="Download tabular data as styled Excel spreadsheet (.xlsx)"
+                >
+                  {isDownloadingExcel ? (
+                    <Loader2 size={12} className="animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  ) : (
+                    <FileSpreadsheet size={12} className="text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+                  )}
+                  <span>{isDownloadingExcel ? 'Excel...' : 'Excel'}</span>
+                </button>
+              )}
+              {/* 📝 1-Click Download Word */}
+              {message.content && message.content.length > 50 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadDocx}
+                  disabled={isDownloadingDocx}
+                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-300 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:bg-blue-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                  title="Download this response as Microsoft Word document (.docx)"
+                >
+                  {isDownloadingDocx ? (
+                    <Loader2 size={12} className="animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+                  ) : (
+                    <FileText size={12} className="text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
+                  )}
+                  <span>{isDownloadingDocx ? 'Word...' : 'Word'}</span>
                 </button>
               )}
               {feedbackSaved && <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Thanks for your feedback</span>}

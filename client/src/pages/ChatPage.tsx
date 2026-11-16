@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChatArea } from '../components/chat/ChatArea';
 import { ChatInput } from '../components/chat/ChatInput';
 import { Sidebar } from '../components/chat/Sidebar';
+import { CanvasPanel, type CanvasArtifact } from '../components/chat/CanvasPanel';
 import { useChat } from '../hooks/useChat';
 import { useDocuments } from '../hooks/useDocuments';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +13,7 @@ import { useConversations } from '../hooks/useConversations';
 import { LanguageSelector } from '../components/chat/LanguageSelector';
 import { useProjects } from '../hooks/useProjects';
 import { Sun, Moon, HelpCircle, Menu, Sparkles, Languages, Loader2, Folder, GitCompare } from 'lucide-react';
+import clsx from 'clsx';
 
 export function ChatPage() {
   const { t, language, currentLanguageOption } = useLanguage();
@@ -25,6 +27,7 @@ export function ChatPage() {
   const [isTranslatingAll, setIsTranslatingAll] = useState(false);
   const [explicitNewChat, setExplicitNewChat] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [canvasArtifact, setCanvasArtifact] = useState<CanvasArtifact | null>(null);
   const { conversations = [] } = useConversations();
   const { projects = [] } = useProjects();
   
@@ -371,30 +374,54 @@ export function ChatPage() {
           </div>
         )}
 
-        <ChatArea
-          messages={messages}
-          isGenerating={isGenerating}
-          username={username}
-          onRetry={handleRetry}
-          onEdit={regenerateMessage}
-          onDeleteMessage={deleteMessage}
-          documentsCount={documents.length}
-          onSuggestedPrompt={handleSendMessage}
-          starterQuestions={[t('starterGreeting')]}
-        />
-        
-        {/* Input & Docs Area */}
-        <div className="bg-[var(--bg-primary)] flex flex-col shrink-0 pb-2 sm:pb-4 pb-safe px-2 sm:px-4 relative">
-          <ChatInput 
-            onSendMessage={handleSendMessage} 
-            disabled={isGenerating} 
-            onUploadFile={uploadDocument}
-            isUploading={isUploading}
-            isGenerating={isGenerating}
-            onStop={stopGeneration}
-            isNewChat={messages.length === 0}
-            botName="bbot"
-          />
+        {/* Main Content Split: Chat Area vs Interactive Canvas */}
+        <div className="flex-1 flex flex-row min-w-0 overflow-hidden relative">
+          {/* Chat Column */}
+          <div className={clsx(
+            "flex flex-col h-full min-w-0 transition-all duration-300",
+            canvasArtifact ? "w-full md:w-1/2 lg:w-5/12 border-r border-[var(--border-subtle)]" : "flex-1"
+          )}>
+            <ChatArea
+              messages={messages}
+              isGenerating={isGenerating}
+              username={username}
+              onRetry={handleRetry}
+              onEdit={regenerateMessage}
+              onDeleteMessage={deleteMessage}
+              documentsCount={documents.length}
+              onSuggestedPrompt={handleSendMessage}
+              onOpenCanvas={(art) => setCanvasArtifact(art)}
+              starterQuestions={[t('starterGreeting')]}
+            />
+            
+            {/* Input & Docs Area */}
+            <div className="bg-[var(--bg-primary)] flex flex-col shrink-0 pb-2 sm:pb-4 pb-safe px-2 sm:px-4 relative">
+              <ChatInput 
+                onSendMessage={handleSendMessage} 
+                disabled={isGenerating} 
+                onUploadFile={uploadDocument}
+                isUploading={isUploading}
+                isGenerating={isGenerating}
+                onStop={stopGeneration}
+                isNewChat={messages.length === 0}
+                botName="bbot"
+              />
+            </div>
+          </div>
+
+          {/* Interactive Canvas Side Panel (Split on desktop, modal on mobile) */}
+          {canvasArtifact && (
+            <div className="fixed md:static inset-0 md:inset-auto z-40 md:z-20 flex flex-col flex-1 h-full min-w-0 bg-[var(--bg-surface)]">
+              <CanvasPanel
+                artifact={canvasArtifact}
+                onClose={() => setCanvasArtifact(null)}
+                onSendMessage={(txt) => handleSendMessage(txt)}
+                onUpdateContent={(newContent) => {
+                  setCanvasArtifact(prev => prev ? { ...prev, content: newContent } : null);
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

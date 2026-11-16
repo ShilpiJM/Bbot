@@ -634,3 +634,68 @@ def download_pdf_endpoint(file_id: str):
         headers={"Content-Disposition": f"attachment; filename=bbot_report_{file_id}.pdf"}
     )
 
+
+# --- Excel & Word Multi-Format Export Endpoints ---
+
+class ExportDocumentRequest(BaseModel):
+    content: str
+    title: Optional[str] = "Data Export"
+    filename_hint: Optional[str] = "bbot_export"
+
+
+@router.post("/export/generate-excel")
+def generate_excel_endpoint(req: ExportDocumentRequest, current_user: dict = Depends(get_current_user)):
+    from src.services.excel_export_service import get_excel_export_service
+    excel_service = get_excel_export_service()
+    res = excel_service.generate_excel(
+        content=req.content,
+        title=req.title or "Data Export",
+        filename_hint=req.filename_hint or "bbot_data"
+    )
+    return res
+
+
+@router.get("/export/excel/{file_id}")
+def download_excel_endpoint(file_id: str):
+    from fastapi.responses import FileResponse
+    from src.services.excel_export_service import get_excel_export_service
+    excel_service = get_excel_export_service()
+    excel_path = excel_service.get_file_path(file_id)
+    if not excel_path or not excel_path.exists():
+        raise HTTPException(status_code=404, detail="Requested Excel spreadsheet not found or expired.")
+    return FileResponse(
+        path=str(excel_path),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=excel_path.name,
+        headers={"Content-Disposition": f"attachment; filename={excel_path.name}"}
+    )
+
+
+@router.post("/export/generate-docx")
+def generate_docx_endpoint(req: ExportDocumentRequest, current_user: dict = Depends(get_current_user)):
+    from src.services.docx_export_service import get_docx_export_service
+    docx_service = get_docx_export_service()
+    res = docx_service.generate_docx(
+        content=req.content,
+        title=req.title or "Intelligence Report",
+        filename_hint=req.filename_hint or "bbot_document"
+    )
+    return res
+
+
+@router.get("/export/docx/{file_id}")
+def download_docx_endpoint(file_id: str):
+    from fastapi.responses import FileResponse
+    from src.services.docx_export_service import get_docx_export_service
+    docx_service = get_docx_export_service()
+    docx_path = docx_service.get_file_path(file_id)
+    if not docx_path or not docx_path.exists():
+        raise HTTPException(status_code=404, detail="Requested Word document not found or expired.")
+    return FileResponse(
+        path=str(docx_path),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=docx_path.name,
+        headers={"Content-Disposition": f"attachment; filename={docx_path.name}"}
+    )
+
+
