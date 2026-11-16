@@ -223,11 +223,12 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
           window.open(data.download_url, '_blank');
         }
       } else {
-        alert('Failed to generate PDF. Please try again.');
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.detail || 'Failed to generate PDF. Please try again.');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('PDF export error:', e);
-      alert('Failed to generate PDF. Please try again.');
+      alert(e?.message || 'Failed to generate PDF. Please try again.');
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -256,11 +257,12 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
           window.open(data.download_url, '_blank');
         }
       } else {
-        alert('Failed to generate Excel spreadsheet. Please try again.');
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.detail || 'Failed to generate Excel spreadsheet. Please try again.');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Excel export error:', e);
-      alert('Failed to generate Excel spreadsheet. Please try again.');
+      alert(e?.message || 'Failed to generate Excel spreadsheet. Please try again.');
     } finally {
       setIsDownloadingExcel(false);
     }
@@ -289,11 +291,12 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
           window.open(data.download_url, '_blank');
         }
       } else {
-        alert('Failed to generate Word document. Please try again.');
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.detail || 'Failed to generate Word document. Please try again.');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Docx export error:', e);
-      alert('Failed to generate Word document. Please try again.');
+      alert(e?.message || 'Failed to generate Word document. Please try again.');
     } finally {
       setIsDownloadingDocx(false);
     }

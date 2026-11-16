@@ -609,15 +609,19 @@ class GeneratePdfRequest(BaseModel):
 
 @router.post("/export/generate-pdf")
 def generate_pdf_endpoint(req: GeneratePdfRequest, current_user: dict = Depends(get_current_user)):
-    from src.services.pdf_export_service import get_pdf_export_service
-    pdf_service = get_pdf_export_service()
-    res = pdf_service.generate_pdf(
-        content=req.content,
-        title=req.title or "Report Document",
-        filename_hint=req.filename_hint or "report",
-        author=current_user.get("username", "TRPW bbot")
-    )
-    return res
+    try:
+        from src.services.pdf_export_service import get_pdf_export_service
+        pdf_service = get_pdf_export_service()
+        res = pdf_service.generate_pdf(
+            content=req.content,
+            title=req.title or "Report Document",
+            filename_hint=req.filename_hint or "report",
+            author=current_user.get("username", "TRPW bbot")
+        )
+        return res
+    except Exception as e:
+        logger.exception(f"Failed to generate PDF: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF generation error: {str(e)}")
 
 @router.get("/export/pdf/{file_id}")
 def download_pdf_endpoint(file_id: str):
@@ -645,14 +649,18 @@ class ExportDocumentRequest(BaseModel):
 
 @router.post("/export/generate-excel")
 def generate_excel_endpoint(req: ExportDocumentRequest, current_user: dict = Depends(get_current_user)):
-    from src.services.excel_export_service import get_excel_export_service
-    excel_service = get_excel_export_service()
-    res = excel_service.generate_excel(
-        content=req.content,
-        title=req.title or "Data Export",
-        filename_hint=req.filename_hint or "bbot_data"
-    )
-    return res
+    try:
+        from src.services.excel_export_service import get_excel_export_service
+        excel_service = get_excel_export_service()
+        res = excel_service.generate_excel(
+            content=req.content,
+            title=req.title or "Data Export",
+            filename_hint=req.filename_hint or "bbot_data"
+        )
+        return res
+    except Exception as e:
+        logger.exception(f"Failed to generate Excel: {e}")
+        raise HTTPException(status_code=500, detail=f"Excel generation error: {str(e)}")
 
 
 @router.get("/export/excel/{file_id}")
@@ -673,6 +681,18 @@ def download_excel_endpoint(file_id: str):
 
 @router.post("/export/generate-docx")
 def generate_docx_endpoint(req: ExportDocumentRequest, current_user: dict = Depends(get_current_user)):
+    try:
+        from src.services.docx_export_service import get_docx_export_service
+        docx_service = get_docx_export_service()
+        res = docx_service.generate_docx(
+            content=req.content,
+            title=req.title or "Intelligence Report",
+            filename_hint=req.filename_hint or "bbot_document"
+        )
+        return res
+    except Exception as e:
+        logger.exception(f"Failed to generate Word document: {e}")
+        raise HTTPException(status_code=500, detail=f"Word document error: {str(e)}")
     from src.services.docx_export_service import get_docx_export_service
     docx_service = get_docx_export_service()
     res = docx_service.generate_docx(
