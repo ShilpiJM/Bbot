@@ -85,6 +85,20 @@ class WebSearchService:
         results: List[Dict[str, str]] = []
         clean_lower = clean_query.lower()
 
+        # Check if the query is a pure creative, coding, or drafting task that does not need web search
+        creation_cues = [
+            "write a", "write an", "write code", "code a", "create a", "draft a",
+            "generate a", "bna do", "bana do", "likh do", "likh kar do", "script",
+            "leave application", "template", "poem", "story", "solve", "how to write"
+        ]
+        has_realtime_cue = any(kw in clean_lower for kw in [
+            "today", "latest", "current", "news", "breaking", "price", "recent",
+            "who is", "who won", "weather", "aaj", "now", "2026", "update"
+        ])
+        if not has_realtime_cue and any(c in clean_lower for c in creation_cues):
+            logger.info(f"Query '{clean_query}' identified as creative/generation task; skipping web search for maximum responsiveness.")
+            return []
+
         # Check if the query is asking about current affairs, news, today's events, or breaking updates
         news_keywords = ["current affair", "current affairs", "today", "news", "breaking", "headline", "headlines", "aaj", "khabar", "latest", "recent", "what happened"]
         is_news_intent = any(kw in clean_lower for kw in news_keywords)

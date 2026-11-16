@@ -177,14 +177,17 @@ class ChatService:
             if should_ground and aligned_query and aligned_query.strip().lower() != message.strip().lower():
                 user_prompt_content = f"{message} (interpreting terms as: {aligned_query})"
 
-            prompt_messages = (
-                [{"role": "user", "content": user_prompt_content}]
-                if should_ground
-                else context_messages
-            )
+            if search_web:
+                prompt_messages = context_messages
+            else:
+                prompt_messages = (
+                    [{"role": "user", "content": user_prompt_content}]
+                    if should_ground
+                    else context_messages
+                )
             extra_prompt_args = {"language": language} if (language and language != "en") else {}
             effective_system_prompt = system_prompt
-            if not effective_system_prompt and not should_ground and not is_substantive_document_question(message) and not any(w in message.lower() for w in ['dfd', 'flowchart', 'diagram', 'chart', 'graph', 'architecture']):
+            if not search_web and not effective_system_prompt and not should_ground and not is_substantive_document_question(message) and not any(w in message.lower() for w in ['dfd', 'flowchart', 'diagram', 'chart', 'graph', 'architecture']):
                 effective_system_prompt = (
                     "You are TRPW bbot, a helpful AI assistant. Respond warmly, politely, and concisely in 1 to 2 direct sentences. "
                     "Do not write an Executive Summary or long preamble."

@@ -98,22 +98,33 @@ class PromptBuilder:
         
         if not any(m.get("role") == "system" for m in messages):
             # 1. Base Persona
-            sys_parts = [system_prompt or self.system_prompt]
+            if is_web_search:
+                base_persona = system_prompt or (
+                    "You are bbot, an advanced, highly capable AI assistant operating like ChatGPT Plus with real-time web browsing.\n"
+                    "CORE CAPABILITIES & BEHAVIORS:\n"
+                    "- Versatile Content Creation: When asked to write code, create an email, draft a letter, write an essay, compose a plan, or solve a problem, provide immediate, complete, high-quality, and practical solutions with clean formatting.\n"
+                    "- Real-Time Internet & Live Knowledge: You are connected to the live web and real-time news feeds. When asked about current affairs, latest news, trending topics, or recent facts, synthesize up-to-date information seamlessly and accurately.\n"
+                    "- Natural, Conversational & Engaging Tone: Be helpful, articulate, clear, and insightful, just like ChatGPT. Do not be stiff, robotic, or bureaucratic.\n"
+                    "- Code & Technical Excellence: Format all code blocks with clean language syntax tags (```python, ```typescript, etc.), clear explanations, and best practices.\n"
+                    "- Multi-Turn Memory: Seamlessly maintain context across turns when the user asks follow-up questions, requests edits, or asks for alternative versions."
+                )
+                sys_parts = [base_persona]
+            else:
+                sys_parts = [system_prompt or self.system_prompt]
             
             # 2. Strict Document / Web Grounding (Isolated Section)
             if is_web_search:
                 from datetime import datetime
                 today_str = datetime.now().strftime("%A, %d %B %Y")
                 sys_parts.append(
-                    f"=== LIVE REAL-TIME WEB SEARCH & NEWS RULES ===\n"
+                    f"=== REAL-TIME WEB SEARCH & INTERNET INTELLIGENCE ===\n"
                     f"TODAY'S EXACT DATE: {today_str}\n"
                     f"You have active real-time internet search capability and live news feeds connected.\n"
-                    f"Real-time information and live news articles from today are provided directly in the reference context.\n"
                     f"CRITICAL INSTRUCTIONS:\n"
-                    f"- NEVER say 'I do not have access to real-time data', 'my knowledge is static', or 'I cannot browse the internet'. Live web/news search results are directly provided to you.\n"
-                    f"- Directly synthesize and report the real-time facts, events, and headlines from the provided context.\n"
-                    f"- When asked for 'current affairs', 'today\'s news', or latest events, organize the key developments into clear, structured bullet points with dates and sources.\n"
-                    f"- Always cite each item with a clickable markdown link using the URL provided in the context, e.g. [Source Name](URL)."
+                    f"- NEVER say 'I do not have access to real-time data', 'my knowledge is static', or 'I cannot browse the internet'.\n"
+                    f"- When real-time reference context is provided below, directly synthesize the live facts, news headlines, and events.\n"
+                    f"- For current affairs or news, organize the key developments into crisp bullet points with dates and cite sources using clickable markdown links [Source Name](URL).\n"
+                    f"- If the user asks you to create something (code, emails, letters, plans, explanations), fulfill their request directly and comprehensively with high quality."
                 )
                 sys_parts.append(
                     "After substantive replies, you may suggest one concise, natural follow-up topic."

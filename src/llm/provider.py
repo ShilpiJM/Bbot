@@ -212,7 +212,7 @@ class GroqProvider(LLMProvider):
         self.model = (
             model
             or getattr(settings, "GROQ_MODEL", "")
-            or os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
+            or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
         )
         if enable_masking is None:
             enable_masking = getattr(settings, "ENABLE_DATA_MASKING", True)
@@ -235,6 +235,13 @@ class GroqProvider(LLMProvider):
         context_match = re.search(r"## REFERENCE CONTEXT\s*\"\"\"([\s\S]*?)\"\"\"", prompt)
         user_match = re.search(r"## USER REQUEST\s*([\s\S]*?)(?:<\|im_end\|>|$)", prompt)
         user_query = user_match.group(1).strip() if user_match else "your inquiry"
+
+        # Web/Real-Time fallback
+        if "REAL-TIME" in prompt:
+            if context_match:
+                raw_ctx = context_match.group(1).strip()
+                return f"### Real-Time Update: {user_query.title()}\n\n{raw_ctx[:1200]}\n\n*Live sources summarized above.*"
+            return f"I looked up **{user_query}**, but no real-time live updates were retrieved at this moment. Please check back shortly or refine your query."
 
         if context_match:
             raw_ctx = context_match.group(1).strip()
@@ -304,11 +311,12 @@ class GroqProvider(LLMProvider):
         }
 
         # Multi-model pool to seamlessly bypass any single model's momentary TPM/RPM constraint
-        model_pool = [self.model]
-        if "8b" not in self.model.lower():
-            model_pool.append("llama-3.1-8b-instant")
-        if "70b" not in self.model.lower():
-            model_pool.append("llama-3.3-70b-versatile")
+        model_pool = []
+        if self.model:
+            model_pool.append(self.model)
+        for candidate in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]:
+            if candidate not in model_pool:
+                model_pool.append(candidate)
 
         response = None
         response_ctx = None
