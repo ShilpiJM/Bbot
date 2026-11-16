@@ -181,6 +181,7 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
   const [isTranslating, setIsTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const navigate = useNavigate();
 
   const handleVisualizeInStudio = () => {
@@ -194,6 +195,39 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
       console.error('Failed to set studio handoff:', e);
     }
     navigate('/studio');
+  };
+
+  const handleDownloadPdf = async () => {
+    const contentToExport = showTranslated && translatedText ? translatedText : safeContent;
+    if (!contentToExport || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    try {
+      const firstLine = contentToExport.trim().split('\n')[0].replace(/[#*`_]/g, '').trim();
+      const title = firstLine.slice(0, 60) || 'bbot Intelligence Report';
+      const res = await fetch('/api/export/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: contentToExport,
+          title,
+          filename_hint: 'bbot_report'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.download_url) {
+          window.open(data.download_url, '_blank');
+        }
+      } else {
+        alert('Failed to generate PDF. Please try again.');
+      }
+    } catch (e) {
+      console.error('PDF export error:', e);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   useEffect(() => {
@@ -639,6 +673,23 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
                 >
                   <Sparkles size={12} className="text-amber-600 dark:text-amber-400 group-hover:rotate-12 transition-transform shrink-0" />
                   <span>Visualize in Studio</span>
+                </button>
+              )}
+              {/* 📄 1-Click Download PDF */}
+              {message.content && message.content.length > 20 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloadingPdf}
+                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-red-800 bg-red-50 hover:bg-red-100 border-red-300 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/30 dark:hover:bg-red-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                  title="Download this response as a presentation-grade PDF document"
+                >
+                  {isDownloadingPdf ? (
+                    <Loader2 size={12} className="animate-spin text-red-600 dark:text-red-400 shrink-0" />
+                  ) : (
+                    <FileText size={12} className="text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform shrink-0" />
+                  )}
+                  <span>{isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
                 </button>
               )}
               {feedbackSaved && <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Thanks for your feedback</span>}

@@ -311,7 +311,7 @@ class PDFExportService:
         if in_table:
             flush_table()
 
-        # Build document
+        # Build document with guaranteed fallback
         doc = SimpleDocTemplate(
             str(file_path),
             pagesize=letter,
@@ -320,7 +320,21 @@ class PDFExportService:
             topMargin=42,
             bottomMargin=42,
         )
-        doc.build(story, canvasmaker=NumberedCanvas)
+        try:
+            doc.build(story, canvasmaker=NumberedCanvas)
+        except Exception as build_err:
+            logger.warning(f"ReportLab rich build failed: {build_err}. Falling back to plain text PDF.")
+            fallback_story = [
+                Paragraph(f"<b>{html.escape(title)}</b>", title_style),
+                Paragraph(f"Author: {html.escape(author)} &nbsp;|&nbsp; Date: {today_full}", subtitle_style),
+                HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CBD5E1"), spaceAfter=14),
+            ]
+            for para in content.split("\n\n"):
+                if para.strip():
+                    clean_para = html.escape(re.sub(r"<[^>]+>", "", para.strip()))
+                    fallback_story.append(Paragraph(clean_para.replace("\n", "<br/>"), body_style))
+                    fallback_story.append(Spacer(1, 6))
+            doc.build(fallback_story, canvasmaker=NumberedCanvas)
 
         logger.info(f"Generated PDF file '{filename}' at {file_path} (size: {file_path.stat().st_size} bytes)")
 

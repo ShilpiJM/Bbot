@@ -24,51 +24,65 @@ class WebSearchService:
 
     def _fetch_live_news_rss(self, query: str = "", max_results: int = 5) -> List[Dict[str, str]]:
         """
-        Fetches live real-time news via Google News RSS (100% Free, zero API key required, real-time up to the minute).
+        Fetches live real-time news via Google News RSS and secondary resilient RSS feeds
+        (100% Free, zero API key required, real-time up to the minute).
         """
         results: List[Dict[str, str]] = []
         clean_q = (query or "").strip().lower()
 
-        # Check if query is looking for today's breaking news / general current affairs
-        general_news_cues = ["current affair", "current affairs", "today", "news", "breaking", "headlines", "aaj", "khabar", "latest news", "top news"]
-        is_general_today = not clean_q or any(cue in clean_q for cue in ["today", "current affair", "headlines", "breaking", "aaj ki", "now"])
+        # Normalize common typos
+        clean_q = re.sub(r'\b(afairs|afair)\b', 'affairs', clean_q)
+        clean_q = re.sub(r'\b(curent|curant)\b', 'current', clean_q)
 
+        # Check if query is looking for today's breaking news / general current affairs
+        general_news_cues = ["current affair", "current affairs", "today", "news", "breaking", "headlines", "aaj", "khabar", "latest news", "top news", "affair", "affairs"]
+        is_general_today = not clean_q or any(cue in clean_q for cue in ["today", "current", "headlines", "breaking", "aaj ki", "now", "affair"])
+
+        target_urls = []
         if is_general_today and any(cue in clean_q for cue in general_news_cues):
-            url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
+            target_urls.append("https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en")
+            target_urls.append("https://timesofindia.indiatimes.com/rssfeedstopstories.cms")
+            target_urls.append("https://feeds.feedburner.com/ndtvnews-top-stories")
         else:
             # Topic-specific news search
             search_term = clean_q or "news"
-            url = f"https://news.google.com/rss/search?q={urllib.parse.quote(search_term)}&hl=en-IN&gl=IN&ceid=IN:en"
+            target_urls.append(f"https://news.google.com/rss/search?q={urllib.parse.quote(search_term)}&hl=en-IN&gl=IN&ceid=IN:en")
+            target_urls.append("https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en")
 
-        try:
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-            )
-            with urllib.request.urlopen(req, timeout=6) as resp:
-                root = ET.fromstring(resp.read())
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
 
-            for it in root.findall(".//item")[:max_results]:
-                title = it.find("title").text if it.find("title") is not None else ""
-                link = it.find("link").text if it.find("link") is not None else ""
-                pub = it.find("pubDate").text if it.find("pubDate") is not None else ""
-                desc = it.find("description").text if it.find("description") is not None else ""
-                source_tag = it.find("source")
-                source_name = source_tag.text if source_tag is not None else ""
-                desc_clean = re.sub(r"<[^<]+?>", "", html.unescape(desc or "")).strip()
+        for feed_url in target_urls:
+            try:
+                req = urllib.request.Request(feed_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    root = ET.fromstring(resp.read())
 
-                if title:
-                    body_text = f"{desc_clean} (Published: {pub})" if pub else desc_clean
-                    results.append({
-                        "title": title,
-                        "href": link,
-                        "source": source_name,
-                        "published": pub,
-                        "body": body_text or title,
-                    })
-            logger.info(f"Google News RSS returned {len(results)} live articles for '{query}'")
-        except Exception as e:
-            logger.warning(f"Google News RSS fetch failed: {e}")
+                for it in root.findall(".//item")[:max_results]:
+                    title = it.find("title").text if it.find("title") is not None else ""
+                    link = it.find("link").text if it.find("link") is not None else ""
+                    pub = it.find("pubDate").text if it.find("pubDate") is not None else ""
+                    desc = it.find("description").text if it.find("description") is not None else ""
+                    source_tag = it.find("source")
+                    source_name = source_tag.text if source_tag is not None else ""
+                    desc_clean = re.sub(r"<[^<]+?>", "", html.unescape(desc or "")).strip()
+
+                    if title:
+                        body_text = f"{desc_clean} (Published: {pub})" if pub else desc_clean
+                        results.append({
+                            "title": title,
+                            "href": link,
+                            "source": source_name,
+                            "published": pub,
+                            "body": body_text or title,
+                        })
+                if results:
+                    logger.info(f"News RSS ({feed_url}) returned {len(results)} live articles for '{query}'")
+                    break
+            except Exception as e:
+                logger.warning(f"News RSS fetch failed for {feed_url}: {e}")
+                continue
 
         return results
 
@@ -81,9 +95,13 @@ class WebSearchService:
         if not clean_query:
             clean_query = "latest news today"
 
-        logger.info(f"Performing live web search for: '{clean_query}' (max_results={max_results})")
+        # Normalize common spelling variations
+        normalized_query = re.sub(r'\b(afairs|afair)\b', 'affairs', clean_query, flags=re.IGNORECASE)
+        normalized_query = re.sub(r'\b(curent|curant)\b', 'current', normalized_query, flags=re.IGNORECASE)
+
+        logger.info(f"Performing live web search for: '{normalized_query}' (max_results={max_results})")
         results: List[Dict[str, str]] = []
-        clean_lower = clean_query.lower()
+        clean_lower = normalized_query.lower()
 
         # Check if the query is a pure creative, coding, or drafting task that does not need web search
         creation_cues = [

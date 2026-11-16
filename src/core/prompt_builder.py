@@ -96,78 +96,82 @@ class PromptBuilder:
         """
         prompt = ""
         
-        if not any(m.get("role") == "system" for m in messages):
-            # 1. Base Persona
-            if is_web_search:
-                base_persona = system_prompt or (
-                    "You are bbot, an advanced, highly capable AI assistant operating like ChatGPT Plus with real-time web browsing.\n"
-                    "CORE CAPABILITIES & BEHAVIORS:\n"
-                    "- Versatile Content Creation: When asked to write code, create an email, draft a letter, write an essay, compose a plan, or solve a problem, provide immediate, complete, high-quality, and practical solutions with clean formatting.\n"
-                    "- Real-Time Internet & Live Knowledge: You are connected to the live web and real-time news feeds. When asked about current affairs, latest news, trending topics, or recent facts, synthesize up-to-date information seamlessly and accurately.\n"
-                    "- Natural, Conversational & Engaging Tone: Be helpful, articulate, clear, and insightful, just like ChatGPT. Do not be stiff, robotic, or bureaucratic.\n"
-                    "- Code & Technical Excellence: Format all code blocks with clean language syntax tags (```python, ```typescript, etc.), clear explanations, and best practices.\n"
-                    "- Multi-Turn Memory: Seamlessly maintain context across turns when the user asks follow-up questions, requests edits, or asks for alternative versions.\n"
-                    "- PDF Generation Capability: When the user asks for a PDF ('generate a pdf', 'pdf bana do', 'download as pdf', 'provide a pdf of this data'), NEVER apologize or say you cannot generate PDFs, and NEVER provide Python scripts to build a PDF. The system automatically compiles your response into a presentation-grade downloadable PDF document on the fly. Simply provide the complete, well-structured content with clean headings, bullet points, and tables."
-                )
-                sys_parts = [base_persona]
-            else:
-                sys_parts = [system_prompt or self.system_prompt]
+        # 1. Base Persona & System Directives
+        if is_web_search:
+            base_persona = system_prompt or (
+                "You are bbot, an advanced, highly capable AI assistant operating like ChatGPT Plus with real-time web browsing.\n"
+                "CORE CAPABILITIES & BEHAVIORS:\n"
+                "- Versatile Content Creation: When asked to write code, create an email, draft a letter, write an essay, compose a plan, or solve a problem, provide immediate, complete, high-quality, and practical solutions with clean formatting.\n"
+                "- Real-Time Internet & Live Knowledge: You are connected to the live web and real-time news feeds. When asked about current affairs, latest news, trending topics, or recent facts, synthesize up-to-date information seamlessly and accurately.\n"
+                "- Natural, Conversational & Engaging Tone: Be helpful, articulate, clear, and insightful, just like ChatGPT. Do not be stiff, robotic, or bureaucratic.\n"
+                "- Code & Technical Excellence: Format all code blocks with clean language syntax tags (```python, ```typescript, etc.), clear explanations, and best practices.\n"
+                "- Multi-Turn Memory: Seamlessly maintain context across turns when the user asks follow-up questions, requests edits, or asks for alternative versions.\n"
+                "- PDF Generation Capability: When the user asks for a PDF ('generate a pdf', 'pdf bana do', 'download as pdf', 'provide a pdf of this data'), NEVER apologize or say you cannot generate PDFs, and NEVER provide Python scripts to build a PDF. The system automatically compiles your response into a presentation-grade downloadable PDF document on the fly. Simply provide the complete, well-structured content with clean headings, bullet points, and tables."
+            )
+            sys_parts = [base_persona]
+        else:
+            sys_parts = [system_prompt or self.system_prompt]
+        
+        # 2. Strict Document / Web Grounding (Isolated Section)
+        if is_web_search:
+            from datetime import datetime
+            today_str = datetime.now().strftime("%A, %d %B %Y")
+            sys_parts.append(
+                f"=== REAL-TIME WEB SEARCH & INTERNET INTELLIGENCE ===\n"
+                f"TODAY'S EXACT DATE: {today_str}\n"
+                f"You have active real-time internet search capability and live news feeds connected.\n"
+                f"CRITICAL INSTRUCTIONS:\n"
+                f"- NEVER say 'I do not have access to real-time data', 'my knowledge is static', or 'I cannot browse the internet'.\n"
+                f"- When real-time reference context is provided below, directly synthesize the live facts, news headlines, and events.\n"
+                f"- For current affairs or news, organize the key developments into crisp bullet points with dates and cite sources using clickable markdown links [Source Name](URL).\n"
+                f"- If the user asks you to create something (code, emails, letters, plans, explanations), fulfill their request directly and comprehensively with high quality."
+            )
+            sys_parts.append(
+                "After substantive replies, you may suggest one concise, natural follow-up topic."
+            )
+        elif retrieved_context:
+            sys_parts.append(
+                "=== DOCUMENT Q&A RULES ===\n"
+                "use only the retrieved document context. Do not use general knowledge. Answer ONLY from the provided context.\n"
+                "Extract and report all relevant operational steps, names, roles, procedures, and data clearly present in the context.\n"
+                "Tolerance for variations: If the user query contains spelling mistakes, phonetic variations, or abbreviations for concepts present in the document (e.g., 'exclation' or 'escaltion' for 'escalation'), map them to the corresponding context and answer fully.\n"
+                "If the answer is not clearly supported by the context, say 'I couldn\'t find that in the document.'\n"
+                "Be evidence-first and comprehensive: provide complete, exhaustive explanations backed by context and state uncertainty clearly where information is missing from the document.\n"
+                "If conversation history conflicts with this retrieved document context regarding facts within the documents, the document context takes absolute precedence."
+            )
+            sys_parts.append(
+                "After substantive replies, you may suggest one concise, natural follow-up topic."
+            )
             
-            # 2. Strict Document / Web Grounding (Isolated Section)
-            if is_web_search:
-                from datetime import datetime
-                today_str = datetime.now().strftime("%A, %d %B %Y")
-                sys_parts.append(
-                    f"=== REAL-TIME WEB SEARCH & INTERNET INTELLIGENCE ===\n"
-                    f"TODAY'S EXACT DATE: {today_str}\n"
-                    f"You have active real-time internet search capability and live news feeds connected.\n"
-                    f"CRITICAL INSTRUCTIONS:\n"
-                    f"- NEVER say 'I do not have access to real-time data', 'my knowledge is static', or 'I cannot browse the internet'.\n"
-                    f"- When real-time reference context is provided below, directly synthesize the live facts, news headlines, and events.\n"
-                    f"- For current affairs or news, organize the key developments into crisp bullet points with dates and cite sources using clickable markdown links [Source Name](URL).\n"
-                    f"- If the user asks you to create something (code, emails, letters, plans, explanations), fulfill their request directly and comprehensively with high quality."
-                )
-                sys_parts.append(
-                    "After substantive replies, you may suggest one concise, natural follow-up topic."
-                )
-            elif retrieved_context:
-                sys_parts.append(
-                    "=== DOCUMENT Q&A RULES ===\n"
-                    "use only the retrieved document context. Do not use general knowledge. Answer ONLY from the provided context.\n"
-                    "Extract and report all relevant operational steps, names, roles, procedures, and data clearly present in the context.\n"
-                    "Tolerance for variations: If the user query contains spelling mistakes, phonetic variations, or abbreviations for concepts present in the document (e.g., 'exclation' or 'escaltion' for 'escalation'), map them to the corresponding context and answer fully.\n"
-                    "If the answer is not clearly supported by the context, say 'I couldn\'t find that in the document.'\n"
-                    "Be evidence-first and comprehensive: provide complete, exhaustive explanations backed by context and state uncertainty clearly where information is missing from the document.\n"
-                    "If conversation history conflicts with this retrieved document context regarding facts within the documents, the document context takes absolute precedence."
-                )
-                sys_parts.append(
-                    "After substantive replies, you may suggest one concise, natural follow-up topic."
-                )
-                
-            # 3. User Memories (Isolated Section)
-            if memory_context:
-                sys_parts.append(f"## USER PREFERENCES & MEMORIES\n{memory_context}")
-                
-            # 4. Admin Verified Reference (Isolated Section)
-            if verified_context:
-                sys_parts.append(f"## VERIFIED WORKSPACE KNOWLEDGE\n{verified_context}")
-                
-            # 5. Language Directive (Isolated Section)
-            if language and language.lower() in LANGUAGE_DIRECTIVES:
-                sys_parts.append(LANGUAGE_DIRECTIVES[language.lower()].strip())
-                
-            clean_sys = "\n\n".join(sys_parts)
-            prompt += f"<|im_start|>system\n{clean_sys}<|im_end|>\n"
+        # 3. User Memories (Isolated Section)
+        if memory_context:
+            sys_parts.append(f"## USER PREFERENCES & MEMORIES\n{memory_context}")
             
-        for i, msg in enumerate(messages):
+        # 4. Admin Verified Reference (Isolated Section)
+        if verified_context:
+            sys_parts.append(f"## VERIFIED WORKSPACE KNOWLEDGE\n{verified_context}")
+            
+        # 5. Language Directive (Isolated Section)
+        if language and language.lower() in LANGUAGE_DIRECTIVES:
+            sys_parts.append(LANGUAGE_DIRECTIVES[language.lower()].strip())
+
+        # 6. Any Prior Conversation Summaries or System Messages
+        existing_sys_msgs = [m.get("content", "").strip() for m in messages if m.get("role") == "system" and m.get("content", "").strip()]
+        if existing_sys_msgs:
+            sys_parts.append("## PRIOR CONVERSATION SUMMARY\n" + "\n\n".join(existing_sys_msgs))
+            
+        clean_sys = "\n\n".join(sys_parts)
+        prompt += f"<|im_start|>system\n{clean_sys}<|im_end|>\n"
+        
+        non_system_messages = [m for m in messages if m.get("role") != "system"]
+        for i, msg in enumerate(non_system_messages):
             role = msg.get("role", "user")
             content = msg.get("content", "")
             
-            if role != "system":
-                import re
-                content = re.sub(r'(?i)<[\s]*\|[\s]*.*?[\s]*\|[\s]*>', '', content)
+            import re
+            content = re.sub(r'(?i)<[\s]*\|[\s]*.*?[\s]*\|[\s]*>', '', content)
             
-            if i == len(messages) - 1 and role == "user" and retrieved_context:
+            if i == len(non_system_messages) - 1 and role == "user" and retrieved_context:
                 # Clean modular separation: Context block is cleanly fenced off from user query
                 fence = '"""'
                 enriched_content = (

@@ -335,14 +335,21 @@ class ChatService:
                 ]
                 msg_lower = message.lower()
                 user_wants_pdf = any(c in msg_lower for c in pdf_cues)
-                if user_wants_pdf and len(assistant_response.strip()) > 30:
+                if user_wants_pdf and len(assistant_response.strip()) > 20:
                     try:
                         from src.services.pdf_export_service import get_pdf_export_service
                         pdf_svc = get_pdf_export_service()
-                        first_line = assistant_response.strip().split("\n")[0].strip("#* ")
+                        # If assistant response is short (e.g. user asked for PDF of previous turn), include prior assistant content
+                        pdf_content = assistant_response
+                        if len(pdf_content.strip()) < 150:
+                            prior_assistant = [m for m in context_messages if m.get("role") == "assistant" and m.get("content")]
+                            if prior_assistant:
+                                pdf_content = f"{prior_assistant[-1]['content']}\n\n---\n{assistant_response}"
+
+                        first_line = pdf_content.strip().split("\n")[0].strip("#* ")
                         pdf_title = first_line[:60] if first_line else "Intelligence Report"
                         pdf_res = pdf_svc.generate_pdf(
-                            content=assistant_response,
+                            content=pdf_content,
                             title=pdf_title,
                             filename_hint="bbot_report"
                         )
