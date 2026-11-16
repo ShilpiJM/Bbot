@@ -3948,17 +3948,30 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                 {isSelected && !readOnly && (
                   <div
                     data-interactive="true"
-                    className="absolute -top-11 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)]/95 backdrop-blur-md border border-amber-400/60 shadow-2xl pointer-events-auto text-xs whitespace-nowrap animate-in fade-in zoom-in-95"
+                    className="absolute -top-13 left-1/2 -translate-x-1/2 z-40 max-w-[min(440px,calc(100vw-32px))] rounded-xl bg-[var(--bg-surface)]/95 backdrop-blur-md border border-amber-400/80 shadow-2xl pointer-events-auto text-xs animate-in fade-in zoom-in-95 overflow-hidden"
                     onMouseDown={(e) => e.stopPropagation()}
                   >
+                    <div
+                      className="flex items-center gap-1.5 p-1.5 pb-2 overflow-x-auto overflow-y-hidden whitespace-nowrap toolbar-scrollbar select-none"
+                      style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgba(251, 191, 36, 0.6) rgba(0, 0, 0, 0.3)',
+                      }}
+                      onWheel={(e) => {
+                        if (e.deltaY !== 0) {
+                          e.stopPropagation();
+                          e.currentTarget.scrollLeft += e.deltaY;
+                        }
+                      }}
+                    >
                     {/* Quick Shapes */}
-                    <div className="flex items-center gap-0.5 border-r border-[var(--border-subtle)] pr-1">
+                    <div className="flex items-center gap-0.5 border-r border-[var(--border-subtle)] pr-1 shrink-0">
                       {(['card', 'diamond', 'heart', 'cuboid', 'rectangle', 'pill'] as const).map((s) => (
                         <button
                           key={s}
                           type="button"
                           onClick={() => handleUpdateNode(node.id, { customStyle: { ...(node.customStyle || {}), shape: s } })}
-                          className={`px-1.5 py-0.5 rounded text-[0.68rem] transition-colors ${
+                          className={`px-1.5 py-0.5 rounded text-[0.68rem] transition-colors shrink-0 cursor-pointer ${
                             shape === s
                               ? 'bg-amber-400 text-black font-bold'
                               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
@@ -3971,7 +3984,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     </div>
 
                     {/* Quick Colors */}
-                    <div className="flex items-center gap-1 border-r border-[var(--border-subtle)] px-1">
+                    <div className="flex items-center gap-1 border-r border-[var(--border-subtle)] px-1 shrink-0">
                       {COLOR_PALETTES.slice(0, 5).map((p) => (
                         <button
                           key={p.id}
@@ -3987,7 +4000,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                               },
                             })
                           }
-                          className="w-3.5 h-3.5 rounded-full border border-white/20 transition-transform hover:scale-125 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 transition-transform hover:scale-125 cursor-pointer shrink-0"
                           style={{ backgroundColor: p.border }}
                           title={`Color: ${p.name}`}
                         />
@@ -3995,11 +4008,11 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     </div>
 
                     {/* Quick Size Controls */}
-                    <div className="flex items-center gap-0.5 border-r border-[var(--border-subtle)] px-1">
+                    <div className="flex items-center gap-0.5 border-r border-[var(--border-subtle)] px-1 shrink-0">
                       <button
                         type="button"
                         onClick={() => handleScaleNodeSize(node.id, 0.85)}
-                        className="px-1.5 py-0.5 rounded text-[0.65rem] font-bold text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+                        className="px-1.5 py-0.5 rounded text-[0.65rem] font-bold text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer shrink-0"
                         title="Shrink Box (-15%)"
                       >
                         A-
@@ -4016,7 +4029,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                             key={sz.id}
                             type="button"
                             onClick={() => handleSetNodePresetSize(node.id, sz.w, sz.h)}
-                            className={`px-1.5 py-0.5 rounded text-[0.65rem] font-bold transition-colors cursor-pointer ${
+                            className={`px-1.5 py-0.5 rounded text-[0.65rem] font-bold transition-colors cursor-pointer shrink-0 ${
                               isCurrent
                                 ? 'bg-amber-400 text-black font-extrabold shadow-xs'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
@@ -4030,7 +4043,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                       <button
                         type="button"
                         onClick={() => handleScaleNodeSize(node.id, 1.15)}
-                        className="px-1.5 py-0.5 rounded text-[0.65rem] font-bold text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+                        className="px-1.5 py-0.5 rounded text-[0.65rem] font-bold text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer shrink-0"
                         title="Enlarge Box (+15%)"
                       >
                         A+
@@ -4041,7 +4054,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     <button
                       type="button"
                       onClick={() => handleQuickAddNextStep(node.id)}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.68rem] font-bold bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.68rem] font-bold bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors cursor-pointer shrink-0"
                       title="Add Next Connected Step (Tab)"
                     >
                       <Plus size={11} strokeWidth={3} className="text-amber-300" />
@@ -4051,7 +4064,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
 
                     {/* 1-Click Direct Connect Dropdown */}
                     {diagram.nodes.filter((n) => n.id !== node.id).length > 0 && (
-                      <div className="flex items-center gap-1 border-r border-[var(--border-subtle)] pr-1 pl-0.5">
+                      <div className="flex items-center gap-1 border-r border-[var(--border-subtle)] pr-1 pl-0.5 shrink-0">
                         <Zap size={11} className="text-cyan-400 shrink-0" />
                         <select
                           value=""
@@ -4061,7 +4074,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                               e.target.value = '';
                             }
                           }}
-                          className="bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:border-cyan-400 rounded px-1.5 py-0.5 text-[0.68rem] focus:outline-none cursor-pointer max-w-[125px] truncate transition-colors"
+                          className="bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:border-cyan-400 rounded px-1.5 py-0.5 text-[0.68rem] focus:outline-none cursor-pointer max-w-[125px] truncate transition-colors shrink-0"
                           title="1-Click Direct Connect To Another Box"
                         >
                           <option value="" disabled>Connect To... ▾</option>
@@ -4084,7 +4097,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                           const otherId = selectedNodeIds.find((id) => id !== node.id);
                           if (otherId) handleCreateEdge(node.id, otherId);
                         }}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.68rem] font-bold bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.68rem] font-bold bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 transition-colors cursor-pointer shrink-0"
                         title="Link the 2 selected boxes immediately"
                       >
                         <Zap size={10} /> Link 2 Boxes
@@ -4093,7 +4106,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
 
                     {/* Upload Image/Logo Quick Button */}
                     <label
-                      className="p-1 rounded text-[var(--text-secondary)] hover:text-cyan-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+                      className="p-1 rounded text-[var(--text-secondary)] hover:text-cyan-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer shrink-0"
                       title={node.imageUrl ? 'Change Uploaded Image/Logo' : 'Upload Image/Logo to Box'}
                     >
                       <ImageIcon size={11} className={node.imageUrl ? 'text-cyan-400' : ''} />
@@ -4122,7 +4135,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                       <button
                         type="button"
                         onClick={() => handleUpdateNode(node.id, { imageUrl: undefined })}
-                        className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 transition-colors cursor-pointer"
+                        className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 transition-colors cursor-pointer shrink-0"
                         title="Remove Image"
                       >
                         <X size={11} />
@@ -4136,7 +4149,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                         setSelectedNodeId(node.id);
                         setIsInspectorOpen(true);
                       }}
-                      className="p-1 rounded text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+                      className="p-1 rounded text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer shrink-0"
                       title="Edit Box Text & Styling"
                     >
                       <Edit3 size={11} />
@@ -4146,7 +4159,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     <button
                       type="button"
                       onClick={() => handleApplyStyleToAllNodes(false)}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.68rem] font-bold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 hover:text-amber-300 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.68rem] font-bold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 hover:text-amber-300 transition-colors cursor-pointer shrink-0"
                       title="Apply this box's color & font formatting to all boxes"
                     >
                       <Sparkles size={11} />
@@ -4157,7 +4170,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     <button
                       type="button"
                       onClick={() => handleDuplicateNode(node.id)}
-                      className="p-1 rounded text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+                      className="p-1 rounded text-[var(--text-secondary)] hover:text-amber-400 hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer shrink-0"
                       title="Duplicate Box"
                     >
                       <Copy size={11} />
@@ -4167,11 +4180,12 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     <button
                       type="button"
                       onClick={() => handleDeleteNode(node.id)}
-                      className="p-1 rounded text-red-400 hover:text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer"
+                      className="p-1 rounded text-red-400 hover:text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer shrink-0"
                       title="Delete Box"
                     >
                       <Trash2 size={11} />
                     </button>
+                    </div>
                   </div>
                 )}
 
