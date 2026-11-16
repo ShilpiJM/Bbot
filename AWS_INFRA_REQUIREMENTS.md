@@ -246,3 +246,4 @@ sudo certbot --nginx -d your-domain.com
    * Iska monthly cost less than **$1** hota hai aur pura server 1-click me restore ho jata hai.
 2. **Log Rotation:**
    * Nginx aur systemd logs automatic rotate hote hain, server storage fill up nahi hoga.
+

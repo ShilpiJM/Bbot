@@ -86,7 +86,7 @@ class ChatService:
 
         return message
 
-    def generate_chat_response(self, message: str, conversation_id: str, user_id: str = None, system_prompt: str = "", reserved: bool = False, exclude_sources: bool = False, language: Optional[str] = "en") -> Generator[Dict[str, Any], None, None]:
+    def generate_chat_response(self, message: str, conversation_id: str, user_id: str = None, system_prompt: str = "", reserved: bool = False, exclude_sources: bool = False, language: Optional[str] = "en", search_web: bool = False) -> Generator[Dict[str, Any], None, None]:
         """
         Orchestrates the chat flow with persistence.
         Yields tokens and status updates lazily.
@@ -104,37 +104,53 @@ class ChatService:
             # Prepare context (loads history + new message)
             context_messages = self.context_manager.prepare_context(conversation_id, message)
             
-            # Retrieve document context (using context-expanded search query for multi-turn conversations)
             retrieved_context = ""
             aligned_query = message
-            try:
-                from src.config import settings
-                if settings.RAG_ENABLED:
-                    retrieval_service = get_retrieval_service()
+            should_ground = False
+
+            if search_web:
+                yield {"type": "status", "status": "Searching the web in real-time..."}
+                try:
+                    from src.services.web_search_service import get_web_search_service
+                    web_svc = get_web_search_service()
                     search_query = self._resolve_retrieval_query(message, context_messages)
-                    retrieved_context = retrieval_service.retrieve_context(search_query, conversation_id)
-                    if hasattr(retrieval_service, 'align_query'):
-                        aligned_query = retrieval_service.align_query(message, conversation_id)
-            except Exception as e:
-                print(f"Error retrieving context: {e}")
-                traceback.print_exc()
+                    web_results = web_svc.search(search_query, max_results=5)
+                    retrieved_context = web_svc.format_for_prompt(web_results)
+                    should_ground = bool(retrieved_context)
+                except Exception as e:
+                    logger.warning(f"Web search failed: {e}")
+                    retrieved_context = ""
+                    should_ground = False
+            else:
+                # Retrieve document context (using context-expanded search query for multi-turn conversations)
+                try:
+                    from src.config import settings
+                    if settings.RAG_ENABLED:
+                        retrieval_service = get_retrieval_service()
+                        search_query = self._resolve_retrieval_query(message, context_messages)
+                        retrieved_context = retrieval_service.retrieve_context(search_query, conversation_id)
+                        if hasattr(retrieval_service, 'align_query'):
+                            aligned_query = retrieval_service.align_query(message, conversation_id)
+                except Exception as e:
+                    print(f"Error retrieving context: {e}")
+                    traceback.print_exc()
 
-            # Only ground if actual document text was retrieved, not just the inventory header
-            has_real_context = bool(retrieved_context and not retrieved_context.startswith("[Document inventory:"))
-            
-            # Append inventory header independently if docs exist
-            try:
-                document_count = len(DocumentRepository().get_conversation_documents(conversation_id))
-                if document_count > 0:
-                    retrieved_context = (
-                        f"[Document inventory: {document_count} document(s) attached to this conversation. "
-                        "Use this count as the factual total when the user asks how many documents are available.]\n"
-                        f"{retrieved_context}"
-                    )
-            except Exception:
-                pass
+                # Only ground if actual document text was retrieved, not just the inventory header
+                has_real_context = bool(retrieved_context and not retrieved_context.startswith("[Document inventory:"))
+                
+                # Append inventory header independently if docs exist
+                try:
+                    document_count = len(DocumentRepository().get_conversation_documents(conversation_id))
+                    if document_count > 0:
+                        retrieved_context = (
+                            f"[Document inventory: {document_count} document(s) attached to this conversation. "
+                            "Use this count as the factual total when the user asks how many documents are available.]\n"
+                            f"{retrieved_context}"
+                        )
+                except Exception:
+                    pass
 
-            should_ground = has_real_context and is_substantive_document_question(message)
+                should_ground = has_real_context and is_substantive_document_question(message)
 
             memory_context = ""
             verified_context = ""
@@ -181,6 +197,7 @@ class ChatService:
                     memory_context=memory_context,
                     system_prompt=effective_system_prompt,
                     verified_context=verified_context,
+                    is_web_search=search_web,
                     **extra_prompt_args,
                 )
             elif memory_context or verified_context:
@@ -189,12 +206,14 @@ class ChatService:
                     retrieved_context if should_ground else "",
                     memory_context,
                     verified_context=verified_context,
+                    is_web_search=search_web,
                     **extra_prompt_args,
                 )
             else:
                 prompt = self.prompt_builder.build_prompt(
                     prompt_messages,
                     retrieved_context if should_ground else "",
+                    is_web_search=search_web,
                     **extra_prompt_args,
                 )
                 
@@ -202,8 +221,8 @@ class ChatService:
             from src.database.semantic_cache import get_cached_response, set_cached_response
             prompt_hash = hashlib.sha256(prompt.encode('utf-8')).hexdigest()
             
-            # Check semantic cache first (persistent SQLite + in-memory prompt cache)
-            cached_ans = _PROMPT_CACHE.get(prompt_hash) or get_cached_response(message, retrieved_context if should_ground else "")
+            # Check semantic cache first (only for local document queries, not for live real-time web searches)
+            cached_ans = None if search_web else (_PROMPT_CACHE.get(prompt_hash) or get_cached_response(message, retrieved_context if should_ground else ""))
             if cached_ans:
                 logger.info(f"Cache hit for query: {message[:40]}")
                 yield {"type": "text", "content": cached_ans}

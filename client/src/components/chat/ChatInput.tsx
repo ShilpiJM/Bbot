@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Send, Paperclip, Loader2, Mic, Sparkles, Languages } from 'lucide-react';
+import { Send, Paperclip, Loader2, Mic, Sparkles, Languages, FileText, Globe } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import clsx from 'clsx';
@@ -14,7 +14,7 @@ declare global {
 }
 
 interface ChatInputProps {
-  onSendMessage: (message: string, options?: { originalText?: string }) => void;
+  onSendMessage: (message: string, options?: { originalText?: string; searchWeb?: boolean }) => void;
   disabled?: boolean;
   onUploadFile?: (file: File) => void;
   isUploading?: boolean;
@@ -64,6 +64,7 @@ export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, 
     return '';
   });
   const [isRecording, setIsRecording] = useState(false);
+  const [searchWeb, setSearchWeb] = useState(false);
   const [transliterateEnabled, setTransliterateEnabled] = useState(true);
   const [autoTranslateInput, setAutoTranslateInput] = useState(true);
   const [isTranslatingInput, setIsTranslatingInput] = useState(false);
@@ -161,7 +162,7 @@ export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, 
         if (res.ok) {
           const data = await res.json();
           if (data.translated_text && data.translated_text.trim()) {
-            onSendMessage(data.translated_text.trim(), { originalText: textToSend });
+            onSendMessage(data.translated_text.trim(), { originalText: textToSend, searchWeb });
             setInput('');
             return;
           }
@@ -173,7 +174,7 @@ export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, 
       }
     }
 
-    onSendMessage(textToSend);
+    onSendMessage(textToSend, { searchWeb });
     setInput('');
   };
 
@@ -288,6 +289,56 @@ export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, 
           )}
         </div>
       )}
+
+      {/* Knowledge Mode Toggle Bar (Pure Document vs Live Web Search) */}
+      <div className="w-full max-w-[960px] mb-2 flex items-center justify-between gap-2 pointer-events-auto px-1 select-none">
+        <div className="flex items-center gap-1 p-0.5 rounded-full bg-[var(--bg-surface)]/90 backdrop-blur-md border border-[var(--border-subtle)] shadow-xs">
+          <button
+            type="button"
+            onClick={() => setSearchWeb(false)}
+            className={clsx(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.72rem] font-bold transition-all cursor-pointer",
+              !searchWeb
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 shadow-xs"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-transparent"
+            )}
+            title="Local Document Mode: 100% private & offline. Answers strictly from uploaded documents."
+          >
+            <FileText size={12} className={!searchWeb ? "text-cyan-400" : ""} />
+            <span>Document (Local)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSearchWeb(true)}
+            className={clsx(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.72rem] font-bold transition-all cursor-pointer",
+              searchWeb
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-xs"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-transparent"
+            )}
+            title="Live Web Search: Searches the internet in real-time for up-to-date facts and news."
+          >
+            <Globe size={12} className={searchWeb ? "text-emerald-400" : ""} />
+            <span>Web Search (Live)</span>
+          </button>
+        </div>
+
+        {/* Live Status Indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 text-[0.65rem] font-medium font-mono">
+          {!searchWeb ? (
+            <span className="flex items-center gap-1.5 text-cyan-400/90 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              100% Offline Document Safe
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Internet Grounded
+            </span>
+          )}
+        </div>
+      </div>
       <div className="w-full max-w-[960px] flex items-end gap-1.5 sm:gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] py-1.5 sm:py-2 px-2.5 sm:px-4 shadow-[0_4px_20px_rgba(0,0,0,0.1)] focus-within:border-[var(--accent)] transition-colors pointer-events-auto">
         <input
           type="file"

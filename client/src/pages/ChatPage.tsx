@@ -101,10 +101,14 @@ export function ChatPage() {
     setIsSidebarOpen(false);
   }, [startNewChat, conversationStorageKey]);
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string, options?: { originalText?: string; searchWeb?: boolean }) => {
     if (isGenerating) return;
     setExplicitNewChat(false);
-    sendMessage(text, { projectId: activeProjectId || undefined });
+    sendMessage(text, {
+      projectId: activeProjectId || undefined,
+      originalText: options?.originalText,
+      searchWeb: options?.searchWeb,
+    });
   };
 
   const handleRetry = (msg: any) => {

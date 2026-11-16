@@ -151,7 +151,7 @@ export function useChat(
     });
   }, []);
 
-  const sendMessage = useCallback(async (text: string, options?: { language?: string; originalText?: string; projectId?: string }) => {
+  const sendMessage = useCallback(async (text: string, options?: { language?: string; originalText?: string; projectId?: string; searchWeb?: boolean }) => {
     const now = Date.now();
     if (!text.trim() || isGenerating || isSendingRef.current || (now - lastSendTimestampRef.current < 500)) return;
     isSendingRef.current = true;
@@ -190,6 +190,7 @@ export function useChat(
           conversation_id: conversationId,
           language: selectedLanguage,
           project_id: options?.projectId || undefined,
+          search_web: options?.searchWeb || false,
         })
       });
 

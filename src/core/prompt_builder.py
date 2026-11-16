@@ -89,7 +89,7 @@ class PromptBuilder:
             "FORMATTING: Use bold key terms (`**term**`), clean section headers (`### Section`), and structured bullet points. Maintain complete, uninterrupted sentences."
         )
 
-    def build_prompt(self, messages: List[Dict[str, str]], retrieved_context: str = "", memory_context: str = "", system_prompt: str = "", verified_context: str = "", language: str = "en") -> str:
+    def build_prompt(self, messages: List[Dict[str, str]], retrieved_context: str = "", memory_context: str = "", system_prompt: str = "", verified_context: str = "", language: str = "en", is_web_search: bool = False) -> str:
         """
         Builds a modular, uncluttered ChatML prompt where system persona,
         grounding rules, user memory, and document context are cleanly isolated.
@@ -100,17 +100,26 @@ class PromptBuilder:
             # 1. Base Persona
             sys_parts = [system_prompt or self.system_prompt]
             
-            # 2. Strict Document Grounding (Isolated Section)
+            # 2. Strict Document / Web Grounding (Isolated Section)
             if retrieved_context:
-                sys_parts.append(
-                    "=== DOCUMENT Q&A RULES ===\n"
-                    "use only the retrieved document context. Do not use general knowledge. Answer ONLY from the provided context.\n"
-                    "Extract and report all relevant operational steps, names, roles, procedures, and data clearly present in the context.\n"
-                    "Tolerance for variations: If the user query contains spelling mistakes, phonetic variations, or abbreviations for concepts present in the document (e.g., 'exclation' or 'escaltion' for 'escalation'), map them to the corresponding context and answer fully.\n"
-                    "If the answer is not clearly supported by the context, say 'I couldn\'t find that in the document.'\n"
-                    "Be evidence-first and comprehensive: provide complete, exhaustive explanations backed by context and state uncertainty clearly where information is missing from the document.\n"
-                    "If conversation history conflicts with this retrieved document context regarding facts within the documents, the document context takes absolute precedence."
-                )
+                if is_web_search:
+                    sys_parts.append(
+                        "=== LIVE WEB SEARCH RULES ===\n"
+                        "You have access to real-time live web search results provided in the context.\n"
+                        "Use these live search results to give an accurate, up-to-date, and factually grounded response.\n"
+                        "Always cite the sources using clickable markdown links, e.g. [Source Title](URL).\n"
+                        "If the web search results do not contain enough information to answer the question, clearly state that."
+                    )
+                else:
+                    sys_parts.append(
+                        "=== DOCUMENT Q&A RULES ===\n"
+                        "use only the retrieved document context. Do not use general knowledge. Answer ONLY from the provided context.\n"
+                        "Extract and report all relevant operational steps, names, roles, procedures, and data clearly present in the context.\n"
+                        "Tolerance for variations: If the user query contains spelling mistakes, phonetic variations, or abbreviations for concepts present in the document (e.g., 'exclation' or 'escaltion' for 'escalation'), map them to the corresponding context and answer fully.\n"
+                        "If the answer is not clearly supported by the context, say 'I couldn\'t find that in the document.'\n"
+                        "Be evidence-first and comprehensive: provide complete, exhaustive explanations backed by context and state uncertainty clearly where information is missing from the document.\n"
+                        "If conversation history conflicts with this retrieved document context regarding facts within the documents, the document context takes absolute precedence."
+                    )
                 sys_parts.append(
                     "After substantive replies, you may suggest one concise, natural follow-up topic."
                 )

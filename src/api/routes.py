@@ -88,6 +88,7 @@ class ChatRequest(BaseModel):
     truncate_from_message_id: Optional[str] = None
     language: Optional[str] = "en"
     project_id: Optional[str] = None
+    search_web: Optional[bool] = False
 
 class MessageFeedbackRequest(BaseModel):
     rating: str = Field(..., pattern="^(positive|negative)$")
@@ -378,6 +379,7 @@ def chat_endpoint(request: Request, chat_req: ChatRequest, service: ChatService 
                 user_id=current_user.get("id"),
                 reserved=True,
                 language=chat_req.language,
+                search_web=bool(chat_req.search_web),
             )
             
             async for item in iterate_in_threadpool(stream):
