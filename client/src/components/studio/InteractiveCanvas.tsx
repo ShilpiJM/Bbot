@@ -229,6 +229,7 @@ export const SHAPES_CONFIG: { id: NodeShape; label: string; iconLabel: string; e
   { id: 'sticky', label: 'Sticky Note', iconLabel: 'Pin Note', emoji: '📌' },
   { id: 'terminal', label: 'Code Terminal', iconLabel: 'Console Window', emoji: '💻' },
   { id: 'minimal', label: 'Minimal Outline', iconLabel: 'Hairline Card', emoji: '▫️' },
+  { id: 'text', label: 'Canvas Text Note', iconLabel: 'Free Text / Note', emoji: '🔤' },
 ];
 
 export const ROUTING_CONFIG: { id: EdgeRouting; label: string; desc: string }[] = [
@@ -2147,6 +2148,142 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
     });
   };
 
+  const [styleAppliedToast, setStyleAppliedToast] = useState<string | null>(null);
+
+  // Apply Selected Box Styling & Typography across All Nodes
+  const handleApplyStyleToAllNodes = (includeShape: boolean = false) => {
+    if (!selectedNode) return;
+    const sourceStyle = selectedNode.customStyle || {};
+    const updated = nodesWithPositions.map((n) => {
+      const keepTextShape = n.customStyle?.shape === 'text' && !includeShape;
+      return {
+        ...n,
+        customStyle: {
+          ...(n.customStyle || {}),
+          borderColor: sourceStyle.borderColor,
+          bgColor: keepTextShape ? 'transparent' : sourceStyle.bgColor,
+          bgOpacity: sourceStyle.bgOpacity,
+          textColor: sourceStyle.textColor,
+          subtextColor: sourceStyle.subtextColor,
+          glowColor: sourceStyle.glowColor,
+          borderWidth: keepTextShape ? 0 : sourceStyle.borderWidth,
+          borderStyle: sourceStyle.borderStyle,
+          fontSize: sourceStyle.fontSize,
+          fontWeight: sourceStyle.fontWeight,
+          textAlign: sourceStyle.textAlign,
+          subheadingFontSize: sourceStyle.subheadingFontSize,
+          subheadingFontWeight: sourceStyle.subheadingFontWeight,
+          subheadingStyle: sourceStyle.subheadingStyle,
+          subheadingTextAlign: sourceStyle.subheadingTextAlign,
+          subheadingLines: sourceStyle.subheadingLines,
+          shadow: keepTextShape ? 'none' : sourceStyle.shadow,
+          ...(includeShape && sourceStyle.shape ? { shape: sourceStyle.shape } : {}),
+        },
+      };
+    });
+
+    onUpdateDiagram({
+      ...diagram,
+      nodes: updated,
+    });
+
+    setStyleAppliedToast(`Format & styling applied to all ${nodesWithPositions.length} boxes!`);
+    setTimeout(() => setStyleAppliedToast(null), 3000);
+  };
+
+  // 1-Click: Apply specifically colors across all nodes
+  const handleApplyColorsToAll = () => {
+    if (!selectedNode) return;
+    const sourceStyle = selectedNode.customStyle || {};
+    const updated = nodesWithPositions.map((n) => ({
+      ...n,
+      customStyle: {
+        ...(n.customStyle || {}),
+        borderColor: sourceStyle.borderColor,
+        bgColor: n.customStyle?.shape === 'text' ? 'transparent' : sourceStyle.bgColor,
+        bgOpacity: sourceStyle.bgOpacity,
+        textColor: sourceStyle.textColor,
+        subtextColor: sourceStyle.subtextColor,
+        glowColor: sourceStyle.glowColor,
+      },
+    }));
+    onUpdateDiagram({ ...diagram, nodes: updated });
+    setStyleAppliedToast(`Colors & Theme applied to all ${nodesWithPositions.length} boxes!`);
+    setTimeout(() => setStyleAppliedToast(null), 3000);
+  };
+
+  // 1-Click: Apply specifically typography across all nodes
+  const handleApplyTypographyToAll = () => {
+    if (!selectedNode) return;
+    const sourceStyle = selectedNode.customStyle || {};
+    const updated = nodesWithPositions.map((n) => ({
+      ...n,
+      customStyle: {
+        ...(n.customStyle || {}),
+        fontSize: sourceStyle.fontSize,
+        fontWeight: sourceStyle.fontWeight,
+        textAlign: sourceStyle.textAlign,
+        subheadingFontSize: sourceStyle.subheadingFontSize,
+        subheadingFontWeight: sourceStyle.subheadingFontWeight,
+        subheadingStyle: sourceStyle.subheadingStyle,
+        subheadingTextAlign: sourceStyle.subheadingTextAlign,
+        subheadingLines: sourceStyle.subheadingLines,
+      },
+    }));
+    onUpdateDiagram({ ...diagram, nodes: updated });
+    setStyleAppliedToast(`Typography & font format applied to all ${nodesWithPositions.length} boxes!`);
+    setTimeout(() => setStyleAppliedToast(null), 3000);
+  };
+
+  // Add Free-Floating Text Note / Section Header outside boxes
+  const handleAddTextNote = (atPos?: { x: number; y: number }) => {
+    const newId = `note_${Date.now().toString(36)}`;
+    const index = nodesWithPositions.length + 1;
+
+    let posX = 120;
+    let posY = 100;
+    if (atPos) {
+      posX = atPos.x;
+      posY = atPos.y;
+    } else if (nodesWithPositions.length > 0) {
+      const firstNode = nodesWithPositions[0];
+      posX = firstNode.x || 100;
+      posY = Math.max(30, (firstNode.y || 160) - 95);
+    }
+
+    const newNote: NodeSpec = {
+      id: newId,
+      label: 'Section Annotation / Header',
+      sublabel: 'Add free-floating notes, phase description, or key takeaways...',
+      type: 'note',
+      order: index,
+      x: posX,
+      y: posY,
+      width: 260,
+      height: 75,
+      customStyle: {
+        shape: 'text',
+        bgColor: 'transparent',
+        borderColor: 'transparent',
+        borderWidth: 0,
+        textColor: isLight ? '#0f172a' : '#f8fafc',
+        subtextColor: isLight ? '#64748b' : '#94a3b8',
+        fontSize: 'md',
+        fontWeight: 'bold',
+        shadow: 'none',
+      },
+    };
+
+    onUpdateDiagram({
+      ...diagram,
+      nodes: [...nodesWithPositions, newNote],
+    });
+
+    setSelectedNodeId(newId);
+    setSelectedNodeIds([newId]);
+    setIsInspectorOpen(true);
+  };
+
   const handleAddNode = (atPos?: { x: number; y: number }) => {
     const newId = `node_${Date.now().toString(36)}`;
     const index = nodesWithPositions.length + 1;
@@ -2763,6 +2900,14 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
         }
       }}
     >
+      {/* Toast Notification for Global Styling & Formatting */}
+      {styleAppliedToast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shadow-2xl animate-in fade-in slide-in-from-top-2 pointer-events-none">
+          <Sparkles size={13} className="fill-slate-950 shrink-0" />
+          <span>{styleAppliedToast}</span>
+        </div>
+      )}
+
       {/* Floating Draggable Action Toolbar - Always Accessible & Responsive */}
       <div
         data-interactive="true"
@@ -2818,6 +2963,18 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
             <Hand size={13} />
           </button>
         </div>
+
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={() => handleAddTextNote()}
+            className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 px-2 py-1.5 text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+            title="Add free-floating text note or section annotation outside boxes"
+          >
+            <Type size={12} />
+            <span className="hidden sm:inline">Add Text</span>
+          </button>
+        )}
 
         <div className="h-4 w-[1px] bg-[var(--border-subtle)] mx-0.5 shrink-0" />
 
@@ -3674,6 +3831,7 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                     'sticky',
                     'terminal',
                     'minimal',
+                    'text',
                   ].includes(rawShape)
                     ? (rawShape as NodeShape)
                     : 'card');
@@ -3984,6 +4142,17 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                       <Edit3 size={11} />
                     </button>
 
+                    {/* Format Apply to All */}
+                    <button
+                      type="button"
+                      onClick={() => handleApplyStyleToAllNodes(false)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.68rem] font-bold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 hover:text-amber-300 transition-colors cursor-pointer"
+                      title="Apply this box's color & font formatting to all boxes"
+                    >
+                      <Sparkles size={11} />
+                      <span className="hidden sm:inline">Format All</span>
+                    </button>
+
                     {/* Duplicate */}
                     <button
                       type="button"
@@ -4020,13 +4189,15 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                       : 'hover:shadow-lg'
                   }`}
                   style={{
-                    backgroundColor: isSvgContained ? 'transparent' : bgColor,
-                    borderColor: isSvgContained ? 'transparent' : borderColor,
-                    borderWidth: isSvgContained ? '0px' : `${borderWidth}px`,
-                    borderStyle: borderStyle,
+                    backgroundColor: isSvgContained || shape === 'text' ? 'transparent' : bgColor,
+                    borderColor: isSvgContained || shape === 'text' ? (isSelected ? 'rgba(251, 191, 36, 0.45)' : 'transparent') : borderColor,
+                    borderWidth: isSvgContained || shape === 'text' ? (isSelected ? '1px' : '0px') : `${borderWidth}px`,
+                    borderStyle: shape === 'text' && isSelected ? 'dashed' : borderStyle,
                     borderRadius:
                       shape === 'pill'
                         ? '9999px'
+                        : shape === 'text'
+                        ? '6px'
                         : shape === 'rectangle'
                         ? '2px'
                         : isSvgContained
@@ -4040,6 +4211,8 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                         : '14px',
                     boxShadow: isSelected
                       ? `0 0 24px ${glowColor}`
+                      : shape === 'text'
+                      ? undefined
                       : node.customStyle?.shadow === 'glow'
                       ? `0 0 16px ${glowColor}`
                       : undefined,
@@ -4573,6 +4746,36 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
                       )}
                     </div>
                   )}
+
+                  {/* Shape 13: Free-Floating Canvas Text Note / Outside Text */}
+                  {shape === 'text' && (
+                    <div className={`p-2.5 flex flex-col justify-start h-full ${textAlignClass} select-text overflow-hidden`}>
+                      <div className="flex items-start justify-between gap-1 w-full">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {node.imageUrl && (
+                            <img src={node.imageUrl} alt="" className="w-5 h-5 rounded object-contain shrink-0 bg-black/20 p-0.5 border border-white/20" />
+                          )}
+                          <span
+                            className={`${fontWeightClass} ${fontSizeClass} tracking-tight leading-tight`}
+                            style={{ color: textColor }}
+                          >
+                            {node.label}
+                          </span>
+                        </div>
+                        {node.badge && (
+                          <span className="text-[0.6rem] font-mono opacity-60 ml-1">[{node.badge}]</span>
+                        )}
+                      </div>
+                      {node.sublabel && (
+                        <p
+                          className={`${subfontWeightClass} ${subfontSizeClass} ${subfontStyleClass} ${subtextAlignClass} ${sublineClampClass} mt-1.5 opacity-85 leading-relaxed`}
+                          style={{ color: subtextColor }}
+                        >
+                          {node.sublabel}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Dedicated Thread Connector Cord & Bead (Taar per Box) */}
@@ -4864,11 +5067,42 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
             {/* Body */}
             {!isInspectorMinimized && (
               <div className="p-3.5 flex-1 overflow-y-auto space-y-4 text-xs select-text">
+                {/* 1-Click Action Banner: Apply Formatting to All Nodes */}
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-indigo-500/10 to-cyan-500/15 border border-amber-500/30 shadow-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[0.72rem] font-bold text-amber-400 flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-amber-400 shrink-0" />
+                      <span>Format Apply to All Nodes</span>
+                    </div>
+                    <div className="text-[0.62rem] text-[var(--text-muted)] mt-0.5 truncate">
+                      Sync colors, typography & borders to all {nodesWithPositions.length} boxes
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyStyleToAllNodes(false)}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
+                    title="Apply current box color, font sizes, weights & border styling to all boxes in the diagram"
+                  >
+                    Apply All
+                  </button>
+                </div>
+
             {/* Section 1: Box Title, Subtitle & Text Styling */}
             <div className="space-y-2">
-              <div className="flex items-center gap-1.5 font-bold text-[0.68rem] text-[var(--text-muted)] uppercase tracking-wider">
-                <Type size={12} className="text-cyan-400" />
-                <span>Text Content & Typography</span>
+              <div className="flex items-center justify-between font-bold text-[0.68rem] text-[var(--text-muted)] uppercase tracking-wider">
+                <div className="flex items-center gap-1.5">
+                  <Type size={12} className="text-cyan-400" />
+                  <span>Text Content & Typography</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyTypographyToAll}
+                  className="text-[0.62rem] text-cyan-400 hover:text-cyan-300 font-semibold underline cursor-pointer lowercase"
+                  title="Apply current font sizes and weights to all boxes"
+                >
+                  apply fonts to all
+                </button>
               </div>
               {/* Box Title (Header) */}
               <div>
@@ -5274,9 +5508,19 @@ export const InteractiveCanvas = forwardRef<InteractiveCanvasRef, InteractiveCan
 
             {/* Section 3: Custom Colors & Fill ("Apni Marzi Jo Colour Karna Hai") */}
             <div className="space-y-3">
-              <div className="flex items-center gap-1.5 font-bold text-[0.68rem] text-[var(--text-muted)] uppercase tracking-wider">
-                <Palette size={12} className="text-amber-400" />
-                <span>Custom Colors & Fill</span>
+              <div className="flex items-center justify-between font-bold text-[0.68rem] text-[var(--text-muted)] uppercase tracking-wider">
+                <div className="flex items-center gap-1.5">
+                  <Palette size={12} className="text-amber-400" />
+                  <span>Custom Colors & Fill</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyColorsToAll}
+                  className="text-[0.62rem] text-amber-400 hover:text-amber-300 font-semibold underline cursor-pointer lowercase"
+                  title="Apply current color palette, border & glow to all boxes"
+                >
+                  apply colors to all
+                </button>
               </div>
 
               {/* Background Color & Opacity Slider */}

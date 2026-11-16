@@ -188,7 +188,10 @@ class ExportService:
             node_border = _parse_color(c_style.get("borderColor"), card_border, bg_color)
             node_text = _parse_color(c_style.get("textColor"), text_primary, bg_color)
 
-            if node_shape == "diamond":
+            if node_shape == "text":
+                # Free-floating canvas text note outside boxes - no border or background
+                pass
+            elif node_shape == "diamond":
                 top_pt = fitz.Point(pos["cx"], pos["y"])
                 right_pt = fitz.Point(pos["x"] + pos["w"], pos["cy"])
                 bot_pt = fitz.Point(pos["cx"], pos["y"] + pos["h"])
@@ -202,7 +205,7 @@ class ExportService:
                 page.draw_rect(rect, color=node_border, fill=node_bg, width=1.5, radius=0.08)
 
             # Node Type Badge
-            if node_shape not in ["diamond", "pill"] and pos["h"] >= 75:
+            if node_shape not in ["diamond", "pill", "text"] and pos["h"] >= 75:
                 badge_rect = fitz.Rect(pos["x"] + 10, pos["y"] + 8, pos["x"] + 80, pos["y"] + 22)
                 page.draw_rect(badge_rect, color=None, fill=node_border, radius=0.15)
                 node_type_label = (node.type or "node").upper()[:10]
@@ -218,7 +221,14 @@ class ExportService:
 
             # Node Label
             label_text = node.label or ""
-            if node_shape == "diamond":
+            if node_shape == "text":
+                # Free-floating canvas text note
+                label_rect = fitz.Rect(pos["x"], pos["y"], pos["x"] + pos["w"], pos["y"] + min(pos["h"], 28))
+                page.insert_textbox(label_rect, label_text, fontsize=11, fontname="helv", color=node_text, align=fitz.TEXT_ALIGN_LEFT)
+                if node.sublabel and pos["h"] > 24:
+                    sub_rect = fitz.Rect(pos["x"], pos["y"] + 24, pos["x"] + pos["w"], pos["y"] + pos["h"])
+                    page.insert_textbox(sub_rect, str(node.sublabel), fontsize=8.5, fontname="helv", color=text_muted, align=fitz.TEXT_ALIGN_LEFT)
+            elif node_shape == "diamond":
                 label_rect = fitz.Rect(pos["x"] + pos["w"] * 0.15, pos["cy"] - 14, pos["x"] + pos["w"] * 0.85, pos["cy"] + 20)
                 page.insert_textbox(label_rect, label_text, fontsize=9, fontname="helv", color=node_text, align=fitz.TEXT_ALIGN_CENTER)
             elif pos["h"] < 75 or node_shape == "pill":

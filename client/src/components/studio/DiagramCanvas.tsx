@@ -48,6 +48,7 @@ import {
   Users,
   Check,
   Milestone,
+  Type,
   Columns,
   RotateCw,
   LayoutGrid,
@@ -2550,6 +2551,40 @@ export const DiagramCanvas = React.forwardRef<DiagramCanvasRef, DiagramCanvasPro
     });
   };
 
+  // Add Free-Floating Text Note / Section Header outside boxes
+  const handleAddTextNote = () => {
+    const newId = `note_${Date.now().toString(36)}`;
+    const newIndex = diagram.nodes.length + 1;
+    const firstNode = diagram.nodes[0];
+    const newNote: NodeSpec = {
+      id: newId,
+      label: 'Section Annotation / Header',
+      sublabel: 'Add free-floating notes, phase description, or key takeaways...',
+      type: 'note',
+      order: newIndex,
+      x: firstNode ? (firstNode.x || 100) : 100,
+      y: firstNode ? Math.max(30, (firstNode.y || 160) - 95) : 100,
+      width: 260,
+      height: 75,
+      customStyle: {
+        shape: 'text',
+        bgColor: 'transparent',
+        borderColor: 'transparent',
+        borderWidth: 0,
+        textColor: isLightMode ? '#0f172a' : '#f8fafc',
+        subtextColor: isLightMode ? '#64748b' : '#94a3b8',
+        fontSize: 'md',
+        fontWeight: 'bold',
+        shadow: 'none',
+      },
+    };
+
+    updateDiagramWithHistory({
+      ...diagram,
+      nodes: [...diagram.nodes, newNote],
+    });
+  };
+
   // In-Between Step Inserter: Split edge between source & target and insert node
   const handleInsertNodeBetween = (sourceId: string, targetId: string) => {
     const sourceIndex = diagram.nodes.findIndex((n) => n.id === sourceId);
@@ -2712,15 +2747,26 @@ export const DiagramCanvas = React.forwardRef<DiagramCanvasRef, DiagramCanvasPro
         {/* Center: Unified Canvas Tools Bar (All tools styled with the exact same visual design as Export) */}
         <div className="flex items-center gap-1.5 shrink-0 relative overflow-visible">
           {!isChart ? (
-            <button
-              type="button"
-              onClick={handleAddNode}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[var(--accent)] to-[#E39A3D] hover:from-[#E39A3D] hover:to-[var(--accent)] px-3 py-1.5 text-xs font-bold text-white transition-all shadow-[var(--energy-glow)] hover:shadow-md active:scale-95 cursor-pointer shrink-0"
-              title="Add a new step to the diagram"
-            >
-              <Plus size={13} />
-              <span>Add Node</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleAddNode}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[var(--accent)] to-[#E39A3D] hover:from-[#E39A3D] hover:to-[var(--accent)] px-3 py-1.5 text-xs font-bold text-white transition-all shadow-[var(--energy-glow)] hover:shadow-md active:scale-95 cursor-pointer shrink-0"
+                title="Add a new step to the diagram"
+              >
+                <Plus size={13} />
+                <span>Add Node</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleAddTextNote}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-2.5 py-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+                title="Add free-floating text note or section annotation outside boxes"
+              >
+                <Type size={13} />
+                <span className="hidden sm:inline">Add Text</span>
+              </button>
+            </>
           ) : (
             <button
               type="button"

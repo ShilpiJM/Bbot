@@ -11,7 +11,8 @@ export type NodeShape =
   | 'sticky'
   | 'terminal'
   | 'minimal'
-  | 'sharp';
+  | 'sharp'
+  | 'text';
 
 export type EdgeRouting = 'curved' | 'orthogonal' | 'straight' | 'arc';
 export type EdgeStrokeStyle = 'solid' | 'dashed' | 'dotted' | 'animated';
