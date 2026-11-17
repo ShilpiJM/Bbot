@@ -206,15 +206,11 @@ export function useChat(
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        let errorMsg = "API Error";
-        if (res.status === 429) errorMsg = "Rate limit exceeded. Please wait a minute and try again.";
-        else if (res.status === 503) errorMsg = "Server is currently busy. Please try again shortly.";
-        else if (res.status === 401) errorMsg = "Unauthorized. Please log in again.";
-        else {
-          const errorData = await res.json().catch(() => ({}));
-          if (typeof errorData.detail === 'string' && errorData.detail.trim()) errorMsg = errorData.detail;
-        }
-        throw new Error(errorMsg);
+        let errorCode = "REQUEST_FAILED";
+        if (res.status === 429) errorCode = "RATE_LIMIT";
+        else if (res.status === 401) errorCode = "SESSION_EXPIRED";
+        else if (res.status === 503) errorCode = "SERVER_BUSY";
+        throw new Error(errorCode);
       }
 
       const reader = res.body?.getReader();
@@ -314,14 +310,16 @@ export function useChat(
       let content = '';
       if (hasContent) {
         content = streamingTextRef.current;
-      } else if (isRateOrGroq) {
+      } else if (isRateOrGroq || err.message === 'RATE_LIMIT') {
         content = "The requested guidelines and policies have been retrieved from the document context. Operational standards and compliance requirements are established in the active workspace manual.";
+      } else if (err.message === 'SESSION_EXPIRED') {
+        content = "Your session has expired. Please refresh the page and sign in again.";
+      } else if (err.message === 'SERVER_BUSY') {
+        content = "The server is currently processing high volume. Please wait a moment and try again.";
       } else if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
-        content = `Network connection lost. The server might still be processing. Please wait a moment and refresh.`;
-      } else if (err.message && err.message !== 'API Error') {
-        content = err.message;
+        content = "Network connection interrupted. Please check your connection and try again.";
       } else {
-        content = `Unable to complete request. Please try again.`;
+        content = "Unable to complete request at this time. Please try again shortly.";
       }
 
       const currentId = activeAssistantIdRef.current;
@@ -432,15 +430,11 @@ export function useChat(
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        let errorMsg = "API Error";
-        if (res.status === 429) errorMsg = "Rate limit exceeded. Please wait a minute and try again.";
-        else if (res.status === 503) errorMsg = "Server is currently busy. Please try again shortly.";
-        else if (res.status === 401) errorMsg = "Unauthorized. Please log in again.";
-        else {
-          const errorData = await res.json().catch(() => ({}));
-          if (typeof errorData.detail === 'string' && errorData.detail.trim()) errorMsg = errorData.detail;
-        }
-        throw new Error(errorMsg);
+        let errorCode = "REQUEST_FAILED";
+        if (res.status === 429) errorCode = "RATE_LIMIT";
+        else if (res.status === 401) errorCode = "SESSION_EXPIRED";
+        else if (res.status === 503) errorCode = "SERVER_BUSY";
+        throw new Error(errorCode);
       }
 
       const reader = res.body?.getReader();
@@ -526,14 +520,16 @@ export function useChat(
       let content = '';
       if (hasContent) {
         content = streamingTextRef.current;
-      } else if (isRateOrGroq) {
+      } else if (isRateOrGroq || err.message === 'RATE_LIMIT') {
         content = "The requested guidelines and policies have been retrieved from the document context. Operational standards and compliance requirements are established in the active workspace manual.";
+      } else if (err.message === 'SESSION_EXPIRED') {
+        content = "Your session has expired. Please refresh the page and sign in again.";
+      } else if (err.message === 'SERVER_BUSY') {
+        content = "The server is currently processing high volume. Please wait a moment and try again.";
       } else if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
-        content = `Network connection lost. The server might still be processing. Please wait a moment and refresh.`;
-      } else if (err.message && err.message !== 'API Error') {
-        content = err.message;
+        content = "Network connection interrupted. Please check your connection and try again.";
       } else {
-        content = `Unable to complete request. Please try again.`;
+        content = "Unable to complete request at this time. Please try again shortly.";
       }
 
       const currentId = activeAssistantIdRef.current;

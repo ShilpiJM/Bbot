@@ -632,7 +632,7 @@ def generate_pdf_endpoint(req: GeneratePdfRequest, current_user: dict = Depends(
         return res
     except Exception as e:
         logger.exception(f"Failed to generate PDF: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unable to generate PDF document at this moment. Please try again.")
 
 @router.get("/export/pdf/{file_id}")
 def download_pdf_endpoint(file_id: str):
@@ -641,7 +641,7 @@ def download_pdf_endpoint(file_id: str):
     pdf_service = get_pdf_export_service()
     pdf_path = pdf_service.get_pdf_path(file_id)
     if not pdf_path or not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="Requested PDF document not found or expired.")
+        raise HTTPException(status_code=404, detail="Requested document not found or expired.")
     return FileResponse(
         path=str(pdf_path),
         media_type="application/pdf",
@@ -671,7 +671,7 @@ def generate_excel_endpoint(req: ExportDocumentRequest, current_user: dict = Dep
         return res
     except Exception as e:
         logger.exception(f"Failed to generate Excel: {e}")
-        raise HTTPException(status_code=500, detail=f"Excel generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unable to generate Excel spreadsheet at this moment. Please try again.")
 
 
 @router.get("/export/excel/{file_id}")
@@ -681,7 +681,7 @@ def download_excel_endpoint(file_id: str):
     excel_service = get_excel_export_service()
     excel_path = excel_service.get_file_path(file_id)
     if not excel_path or not excel_path.exists():
-        raise HTTPException(status_code=404, detail="Requested Excel spreadsheet not found or expired.")
+        raise HTTPException(status_code=404, detail="Requested spreadsheet not found or expired.")
     return FileResponse(
         path=str(excel_path),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -703,7 +703,7 @@ def generate_docx_endpoint(req: ExportDocumentRequest, current_user: dict = Depe
         return res
     except Exception as e:
         logger.exception(f"Failed to generate Word document: {e}")
-        raise HTTPException(status_code=500, detail=f"Word document error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unable to generate Word document at this moment. Please try again.")
     from src.services.docx_export_service import get_docx_export_service
     docx_service = get_docx_export_service()
     res = docx_service.generate_docx(

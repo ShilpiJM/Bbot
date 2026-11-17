@@ -223,12 +223,10 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
           window.open(data.download_url, '_blank');
         }
       } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(errData.detail || 'Failed to generate PDF. Please try again.');
+        alert('Unable to generate PDF document. Please try again shortly.');
       }
-    } catch (e: any) {
-      console.error('PDF export error:', e);
-      alert(e?.message || 'Failed to generate PDF. Please try again.');
+    } catch {
+      alert('Unable to generate PDF document. Please try again shortly.');
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -257,12 +255,10 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
           window.open(data.download_url, '_blank');
         }
       } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(errData.detail || 'Failed to generate Excel spreadsheet. Please try again.');
+        alert('Unable to generate Excel spreadsheet. Please try again shortly.');
       }
-    } catch (e: any) {
-      console.error('Excel export error:', e);
-      alert(e?.message || 'Failed to generate Excel spreadsheet. Please try again.');
+    } catch {
+      alert('Unable to generate Excel spreadsheet. Please try again shortly.');
     } finally {
       setIsDownloadingExcel(false);
     }
@@ -291,12 +287,10 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
           window.open(data.download_url, '_blank');
         }
       } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(errData.detail || 'Failed to generate Word document. Please try again.');
+        alert('Unable to generate Word document. Please try again shortly.');
       }
-    } catch (e: any) {
-      console.error('Docx export error:', e);
-      alert(e?.message || 'Failed to generate Word document. Please try again.');
+    } catch {
+      alert('Unable to generate Word document. Please try again shortly.');
     } finally {
       setIsDownloadingDocx(false);
     }
