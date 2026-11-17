@@ -194,6 +194,18 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
         sourceText: contentToVisualize,
         timestamp: Date.now(),
       }));
+
+      // Preserve active conversation ID so going back from Studio returns to this exact chat
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('trpwbot.currentConversationId.')) {
+          const val = localStorage.getItem(key);
+          if (val) {
+            sessionStorage.setItem('bbot_last_active_conversation_id', val);
+            break;
+          }
+        }
+      }
     } catch (e) {
       console.error('Failed to set studio handoff:', e);
     }

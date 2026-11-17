@@ -48,7 +48,7 @@ export function useChat(
   }, [onConversationCreated]);
 
   const resolveConversationId = useCallback((providedId: string | null | undefined) => {
-    if (providedId !== undefined) {
+    if (providedId) {
       return providedId;
     }
     return typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
@@ -132,8 +132,6 @@ export function useChat(
   useEffect(() => {
     if (currentConversationId) {
       localStorage.setItem(storageKey, currentConversationId);
-    } else {
-      localStorage.removeItem(storageKey);
     }
   }, [currentConversationId, storageKey]);
 
@@ -376,6 +374,7 @@ export function useChat(
     setMessages([]);
     try {
       localStorage.removeItem(storageKey);
+      sessionStorage.removeItem('bbot_last_active_conversation_id');
     } catch {}
   }, [storageKey]);
 

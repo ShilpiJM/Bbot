@@ -22,7 +22,22 @@ export function ChatPage() {
   const conversationStorageKey = userId
     ? `trpwbot.currentConversationId.${userId}`
     : 'trpwbot.currentConversationId.pending';
-  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const studioReturnId = sessionStorage.getItem('bbot_last_active_conversation_id');
+        if (studioReturnId) return studioReturnId;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('trpwbot.currentConversationId.')) {
+            const val = localStorage.getItem(key);
+            if (val) return val;
+          }
+        }
+      }
+    } catch {}
+    return null;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isTranslatingAll, setIsTranslatingAll] = useState(false);
@@ -64,25 +79,30 @@ export function ChatPage() {
 
   const { theme, toggleTheme } = useTheme();
 
+  // Always keep last active conversation ID stored so returning from Studio or other views never loses chat
+  useEffect(() => {
+    if (currentConversationId) {
+      try {
+        localStorage.setItem(conversationStorageKey, currentConversationId);
+        sessionStorage.setItem('bbot_last_active_conversation_id', currentConversationId);
+      } catch {}
+    }
+  }, [currentConversationId, conversationStorageKey]);
+
   const hasInitializedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!userId) {
       hasInitializedRef.current = null;
-      setSelectedConvId(null);
-      setMessages([]);
       return;
     }
     if (hasInitializedRef.current === userId) return;
 
     hasInitializedRef.current = userId;
-    const storedId = localStorage.getItem(conversationStorageKey);
+    const storedId = sessionStorage.getItem('bbot_last_active_conversation_id') || localStorage.getItem(conversationStorageKey);
     if (storedId && !explicitNewChat) {
       setSelectedConvId(storedId);
-    } else {
-      setSelectedConvId(null);
-      setMessages([]);
     }
-  }, [conversationStorageKey, userId, setMessages, explicitNewChat]);
+  }, [conversationStorageKey, userId, explicitNewChat]);
 
   useEffect(() => {
     if (!isHelpOpen) return;
@@ -102,6 +122,7 @@ export function ChatPage() {
     setExplicitNewChat(true);
     try {
       localStorage.removeItem(conversationStorageKey);
+      sessionStorage.removeItem('bbot_last_active_conversation_id');
     } catch {}
     setIsSidebarOpen(false);
   }, [startNewChat, conversationStorageKey]);
@@ -303,6 +324,13 @@ export function ChatPage() {
             {/* Visual Studio Link */}
             <Link
               to="/studio"
+              onClick={() => {
+                if (currentConversationId) {
+                  try {
+                    sessionStorage.setItem('bbot_last_active_conversation_id', currentConversationId);
+                  } catch {}
+                }
+              }}
               className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-900 hover:text-violet-950 border border-violet-300 hover:border-violet-400 text-[0.7rem] sm:text-xs font-bold transition-all shadow-xs dark:bg-violet-600/15 dark:border-violet-500/30 dark:text-violet-300 dark:hover:text-white shrink-0"
               title="Open bbot Visual Studio"
             >
