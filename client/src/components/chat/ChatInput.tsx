@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Send, Paperclip, Loader2, Mic, Sparkles, Languages, FileText, Globe } from 'lucide-react';
+import { Send, Paperclip, Loader2, Mic, Sparkles, Languages, FileText, Globe, Bookmark } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import clsx from 'clsx';
@@ -22,6 +22,7 @@ interface ChatInputProps {
   onStop?: () => void;
   isNewChat?: boolean;
   botName?: string;
+  onOpenTemplates?: () => void;
 }
 
 const SPEECH_LANG_MAP: Record<string, string> = {
@@ -51,7 +52,7 @@ const TRANSLITERATE_LANG_MAP: Record<string, string> = {
 };
 
 
-export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, isGenerating, onStop, isNewChat, botName = 'bbot' }: ChatInputProps) {
+export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, isGenerating, onStop, isNewChat, botName = 'bbot', onOpenTemplates }: ChatInputProps) {
   const { t, language, currentLanguageOption } = useLanguage();
   const [input, setInput] = useState(() => {
     try {
@@ -323,6 +324,19 @@ export function ChatInput({ onSendMessage, disabled, onUploadFile, isUploading, 
             <span>Web Search (Live)</span>
           </button>
         </div>
+
+        {/* Templates Button */}
+        {onOpenTemplates && (
+          <button
+            type="button"
+            onClick={onOpenTemplates}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.72rem] font-bold text-[var(--text-secondary)] hover:text-amber-500 bg-[var(--bg-surface)]/90 backdrop-blur-md border border-[var(--border-subtle)] hover:border-amber-400/50 shadow-xs transition-all cursor-pointer select-none"
+            title="Reusable Templates Library: Leave application, SOPs, client updates, meeting notes"
+          >
+            <Bookmark size={12} className="text-amber-500" />
+            <span>Templates</span>
+          </button>
+        )}
 
         {/* Live Status Indicator */}
         <div className="hidden sm:flex items-center gap-1.5 text-[0.65rem] font-medium font-mono">

@@ -1,13 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { 
   X, Maximize2, Minimize2, Edit3, Eye, Copy, Check, 
-  FileText, FileSpreadsheet, Mail, Sparkles, Loader2, Send 
+  FileText, FileSpreadsheet, Mail, Sparkles, Loader2, Send,
+  ChevronLeft, ChevronRight, Bookmark, BookmarkPlus
 } from 'lucide-react';
 import clsx from 'clsx';
+import { TemplatesModal, type DocumentTemplate } from './TemplatesModal';
+import { EmailModal } from './EmailModal';
 
 export interface CanvasArtifact {
   id: string;
@@ -31,6 +34,17 @@ const sanitizeHtmlSchema: any = {
   },
 };
 
+const REFINEMENT_SUGGESTIONS = [
+  "Make it more executive & concise",
+  "Add a structured comparison table",
+  "Check for missing operational steps",
+  "Format as Official SOP",
+  "Convert to Executive Email",
+  "Add Action Checklist & Owners",
+  "Add Key Takeaways summary",
+  "Translate into professional Hindi",
+];
+
 export const CanvasPanel: React.FC<CanvasPanelProps> = ({
   artifact,
   onClose,
@@ -38,22 +52,32 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
   onUpdateContent,
 }) => {
   const [content, setContent] = useState(artifact.content);
+  const [title, setTitle] = useState(artifact.title || 'Interactive Canvas');
   const [isEditing, setIsEditing] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState('');
-  const [isExporting, setIsExporting] = useState<'pdf' | 'excel' | 'docx' | 'email' | null>(null);
+  const [isExporting, setIsExporting] = useState<'pdf' | 'excel' | 'docx' | null>(null);
 
-  // Sync if artifact changes
+  // Modals
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [templateSavePayload, setTemplateSavePayload] = useState<{ title: string; content: string } | null>(null);
+
+  // Refinement scroll container ref
+  const refinementScrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync if artifact prop changes
   React.useEffect(() => {
     setContent(artifact.content);
-  }, [artifact.content]);
+    setTitle(artifact.title || 'Interactive Canvas');
+  }, [artifact.content, artifact.title]);
 
   const stats = useMemo(() => {
     const words = content.trim().split(/\s+/).filter(Boolean).length;
     const chars = content.length;
     const hasTable = content.includes('|') && content.includes('---');
-    const readMinutes = Math.ceil(words / 200);
+    const readMinutes = Math.max(1, Math.ceil(words / 200));
     return { words, chars, hasTable, readMinutes };
   }, [content]);
 
@@ -63,45 +87,38 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleExport = async (format: 'pdf' | 'excel' | 'docx' | 'email') => {
+  const handleExport = async (format: 'pdf' | 'excel' | 'docx') => {
     if (isExporting) return;
     setIsExporting(format);
 
     try {
       const firstLine = content.trim().split('\n')[0].replace(/[#*`_]/g, '').trim();
-      const title = firstLine.slice(0, 60) || artifact.title || 'bbot Document';
+      const exportTitle = firstLine.slice(0, 60) || title || 'bbot Document';
 
-      if (format === 'email') {
-        const emailBody = encodeURIComponent(content);
-        const emailSubject = encodeURIComponent(title);
-        navigator.clipboard.writeText(`Subject: ${title}\n\n${content}`);
-        window.open(`mailto:?subject=${emailSubject}&body=${emailBody}`, '_blank');
-      } else {
-        const endpoint = format === 'pdf' 
-          ? '/api/export/generate-pdf' 
-          : format === 'excel' 
-          ? '/api/export/generate-excel' 
-          : '/api/export/generate-docx';
+      const endpoint = format === 'pdf' 
+        ? '/api/export/generate-pdf' 
+        : format === 'excel' 
+        ? '/api/export/generate-excel' 
+        : '/api/export/generate-docx';
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            content,
-            title,
-            filename_hint: 'bbot_artifact'
-          })
-        });
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content,
+          title: exportTitle,
+          filename_hint: 'bbot_artifact'
+        })
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.download_url) {
-            window.open(data.download_url, '_blank');
-          }
-        } else {
-          alert(`Failed to export ${format.toUpperCase()}. Please try again.`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.download_url) {
+          window.open(data.download_url, '_blank');
         }
+      } else {
+        alert(`Failed to export ${format.toUpperCase()}. Please try again.`);
       }
     } catch (e) {
       console.error(`Export ${format} error:`, e);
@@ -113,8 +130,25 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
 
   const handleSendRefinement = (promptText: string) => {
     if (!promptText.trim() || !onSendMessage) return;
-    onSendMessage(`Regarding this document ("${artifact.title}"):\n${promptText.trim()}`);
+    onSendMessage(`Regarding this document ("${title}"):\n${promptText.trim()}`);
     setRefinePrompt('');
+  };
+
+  const scrollRefinement = (direction: 'left' | 'right') => {
+    if (refinementScrollRef.current) {
+      const offset = direction === 'left' ? -220 : 220;
+      refinementScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
+
+  const handleSelectTemplate = (tpl: DocumentTemplate, mode: 'canvas' | 'chat') => {
+    if (mode === 'canvas') {
+      setContent(tpl.content);
+      setTitle(tpl.title);
+      if (onUpdateContent) onUpdateContent(tpl.content);
+    } else if (mode === 'chat' && onSendMessage) {
+      onSendMessage(`Please help me fill out and customize this template for our requirements:\n\n### ${tpl.title}\n${tpl.content}`);
+    }
   };
 
   return (
@@ -129,8 +163,8 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
             <FileText size={16} />
           </span>
           <div className="flex flex-col min-w-0">
-            <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[180px] sm:max-w-[280px]">
-              {artifact.title || 'Interactive Canvas'}
+            <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[150px] sm:max-w-[240px]">
+              {title}
             </h3>
             <span className="text-[10px] text-[var(--text-muted)] font-mono">
               {stats.words} words • {stats.readMinutes} min read {stats.hasTable ? '• Contains Table' : ''}
@@ -140,8 +174,35 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
 
         {/* View Controls & Action Toolbar */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Templates Library Launcher */}
+          <button
+            type="button"
+            onClick={() => {
+              setTemplateSavePayload(null);
+              setIsTemplatesModalOpen(true);
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer"
+            title="Browse standard corporate email & document templates"
+          >
+            <Bookmark size={12} className="text-amber-500" />
+            <span className="hidden sm:inline">Templates</span>
+          </button>
+
+          {/* Save as Custom Template */}
+          <button
+            type="button"
+            onClick={() => {
+              setTemplateSavePayload({ title, content });
+              setIsTemplatesModalOpen(true);
+            }}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 border border-transparent hover:border-amber-300 transition-all cursor-pointer"
+            title="Save this document as a reusable template"
+          >
+            <BookmarkPlus size={14} />
+          </button>
+
           {/* Edit / Preview Toggle */}
-          <div className="flex items-center p-0.5 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] mr-1">
+          <div className="flex items-center p-0.5 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
             <button
               type="button"
               onClick={() => setIsEditing(false)}
@@ -216,21 +277,22 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
             <span className="hidden sm:inline">Word</span>
           </button>
 
+          {/* Smart Email Launcher Button */}
           <button
             type="button"
-            onClick={() => handleExport('email')}
-            disabled={isExporting !== null}
-            className="p-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30 transition-all cursor-pointer"
-            title="Draft as Email"
+            onClick={() => setIsEmailModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30 transition-all cursor-pointer"
+            title="Draft & Send as Email via Gmail or Outlook"
           >
-            <Mail size={13} />
+            <Mail size={12} />
+            <span className="hidden sm:inline">Email</span>
           </button>
 
           {/* Maximize / Close */}
           <button
             type="button"
             onClick={() => setIsMaximized(!isMaximized)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer ml-1"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer ml-0.5"
             title={isMaximized ? "Exit fullscreen" : "Fullscreen"}
           >
             {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -290,29 +352,54 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
         )}
       </div>
 
-      {/* Bottom Refinement Prompt Bar */}
+      {/* Bottom Refinement Prompt Bar with Visible Scroll Controls */}
       {onSendMessage && (
         <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 flex flex-col gap-2">
-          {/* Quick refinement suggestion chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
-            <span className="text-[var(--text-muted)] font-semibold shrink-0 flex items-center gap-1">
-              <Sparkles size={11} className="text-amber-500" /> Refine:
+          {/* Quick refinement suggestion bar with scroll arrows and visible scrollbar */}
+          <div className="flex items-center gap-1.5 w-full">
+            <span className="text-[11px] text-[var(--text-muted)] font-semibold shrink-0 flex items-center gap-1 mr-1">
+              <Sparkles size={12} className="text-amber-500" /> Refine:
             </span>
-            {[
-              "Make it more executive & concise",
-              "Add a structured comparison table",
-              "Check for missing operational steps",
-              "Translate into professional Hindi",
-            ].map((suggestion, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSendRefinement(suggestion)}
-                className="shrink-0 px-2.5 py-0.5 rounded-full bg-[var(--bg-surface-hover)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer font-medium"
-              >
-                {suggestion}
-              </button>
-            ))}
+
+            {/* Left Scroll Button */}
+            <button
+              type="button"
+              onClick={() => scrollRefinement('left')}
+              className="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer shrink-0 border border-[var(--border-subtle)]"
+              title="Scroll left"
+            >
+              <ChevronLeft size={13} />
+            </button>
+
+            {/* Scrollable Chips Container with visible styled scrollbar */}
+            <div 
+              ref={refinementScrollRef}
+              className="flex items-center gap-1.5 overflow-x-auto text-[11px] scroll-smooth pr-6 py-1 select-none"
+              style={{
+                scrollbarWidth: 'thin',
+              }}
+            >
+              {REFINEMENT_SUGGESTIONS.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendRefinement(suggestion)}
+                  className="shrink-0 px-2.5 py-1 rounded-full bg-[var(--bg-surface-hover)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer font-medium whitespace-nowrap shadow-2xs"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+
+            {/* Right Scroll Button */}
+            <button
+              type="button"
+              onClick={() => scrollRefinement('right')}
+              className="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer shrink-0 border border-[var(--border-subtle)]"
+              title="Scroll right"
+            >
+              <ChevronRight size={13} />
+            </button>
           </div>
 
           {/* Custom refinement input */}
@@ -342,6 +429,25 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* Smart Email Modal */}
+      <EmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        defaultSubject={title}
+        defaultBody={content}
+      />
+
+      {/* Reusable Templates Modal */}
+      <TemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        onSelectTemplate={handleSelectTemplate}
+        initialSaveContent={templateSavePayload}
+        onSavedSuccess={() => {
+          setTemplateSavePayload(null);
+        }}
+      />
     </div>
   );
 };

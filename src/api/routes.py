@@ -704,14 +704,6 @@ def generate_docx_endpoint(req: ExportDocumentRequest, current_user: dict = Depe
     except Exception as e:
         logger.exception(f"Failed to generate Word document: {e}")
         raise HTTPException(status_code=500, detail="Unable to generate Word document at this moment. Please try again.")
-    from src.services.docx_export_service import get_docx_export_service
-    docx_service = get_docx_export_service()
-    res = docx_service.generate_docx(
-        content=req.content,
-        title=req.title or "Intelligence Report",
-        filename_hint=req.filename_hint or "bbot_document"
-    )
-    return res
 
 
 @router.get("/export/docx/{file_id}")

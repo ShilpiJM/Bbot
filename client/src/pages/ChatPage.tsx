@@ -4,6 +4,7 @@ import { ChatArea } from '../components/chat/ChatArea';
 import { ChatInput } from '../components/chat/ChatInput';
 import { Sidebar } from '../components/chat/Sidebar';
 import { CanvasPanel, type CanvasArtifact } from '../components/chat/CanvasPanel';
+import { TemplatesModal, type DocumentTemplate } from '../components/chat/TemplatesModal';
 import { useChat } from '../hooks/useChat';
 import { useDocuments } from '../hooks/useDocuments';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +29,7 @@ export function ChatPage() {
   const [explicitNewChat, setExplicitNewChat] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [canvasArtifact, setCanvasArtifact] = useState<CanvasArtifact | null>(null);
+  const [isChatTemplatesOpen, setIsChatTemplatesOpen] = useState(false);
   const { conversations = [] } = useConversations();
   const { projects = [] } = useProjects();
   
@@ -405,6 +407,7 @@ export function ChatPage() {
                 onStop={stopGeneration}
                 isNewChat={messages.length === 0}
                 botName="bbot"
+                onOpenTemplates={() => setIsChatTemplatesOpen(true)}
               />
             </div>
           </div>
@@ -424,6 +427,24 @@ export function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* Global Templates Modal from Chat Toolbar */}
+      <TemplatesModal
+        isOpen={isChatTemplatesOpen}
+        onClose={() => setIsChatTemplatesOpen(false)}
+        onSelectTemplate={(tpl: DocumentTemplate, mode: 'canvas' | 'chat') => {
+          if (mode === 'canvas') {
+            setCanvasArtifact({
+              id: tpl.id,
+              title: tpl.title,
+              content: tpl.content,
+              type: 'document'
+            });
+          } else {
+            handleSendMessage(`Please help me fill out and customize this template for our requirements:\n\n### ${tpl.title}\n${tpl.content}`);
+          }
+        }}
+      />
     </div>
   );
 }
