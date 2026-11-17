@@ -51,8 +51,8 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
   onSendMessage,
   onUpdateContent,
 }) => {
-  const [content, setContent] = useState(artifact.content);
-  const [title, setTitle] = useState(artifact.title || 'Interactive Canvas');
+  const [content, setContent] = useState(artifact?.content || '');
+  const [title, setTitle] = useState(artifact?.title || 'Interactive Canvas');
   const [isEditing, setIsEditing] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -69,20 +69,21 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
 
   // Sync if artifact prop changes
   React.useEffect(() => {
-    setContent(artifact.content);
-    setTitle(artifact.title || 'Interactive Canvas');
-  }, [artifact.content, artifact.title]);
+    setContent(artifact?.content || '');
+    setTitle(artifact?.title || 'Interactive Canvas');
+  }, [artifact?.content, artifact?.title]);
 
   const stats = useMemo(() => {
-    const words = content.trim().split(/\s+/).filter(Boolean).length;
-    const chars = content.length;
-    const hasTable = content.includes('|') && content.includes('---');
+    const safeContent = typeof content === 'string' ? content : '';
+    const words = safeContent.trim().split(/\s+/).filter(Boolean).length;
+    const chars = safeContent.length;
+    const hasTable = safeContent.includes('|') && safeContent.includes('---');
     const readMinutes = Math.max(1, Math.ceil(words / 200));
     return { words, chars, hasTable, readMinutes };
   }, [content]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    navigator.clipboard.writeText(content || '');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -92,7 +93,8 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
     setIsExporting(format);
 
     try {
-      const firstLine = content.trim().split('\n')[0].replace(/[#*`_]/g, '').trim();
+      const safeContent = typeof content === 'string' ? content : '';
+      const firstLine = safeContent.trim().split('\n')[0]?.replace(/[#*`_]/g, '').trim() || '';
       const exportTitle = firstLine.slice(0, 60) || title || 'bbot Document';
 
       const endpoint = format === 'pdf' 

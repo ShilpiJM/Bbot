@@ -13,7 +13,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useConversations } from '../hooks/useConversations';
 import { LanguageSelector } from '../components/chat/LanguageSelector';
 import { useProjects } from '../hooks/useProjects';
-import { Sun, Moon, HelpCircle, Menu, Sparkles, Languages, Loader2, Folder, GitCompare } from 'lucide-react';
+import { Sun, Moon, HelpCircle, Menu, Sparkles, Languages, Loader2, Folder, GitCompare, Bookmark } from 'lucide-react';
 import clsx from 'clsx';
 
 export function ChatPage() {
@@ -320,6 +320,17 @@ export function ChatPage() {
               <span className="hidden sm:inline">Cross-Ref Portal</span>
             </Link>
 
+            {/* Reusable Templates Library Button in Top Right Header */}
+            <button
+              type="button"
+              onClick={() => setIsChatTemplatesOpen(true)}
+              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 hover:text-amber-950 border border-amber-300 hover:border-amber-400 text-[0.7rem] sm:text-xs font-bold transition-all shadow-xs dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-300 dark:hover:text-white shrink-0 cursor-pointer"
+              title="Open Reusable Templates Library (Leave, SOP, Status, MoM, RFQ)"
+            >
+              <Bookmark size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="hidden sm:inline">Templates</span>
+            </button>
+
             {/* Export Buttons */}
             {messages.length > 0 && (
               <div className="flex items-center gap-0.5 px-1 py-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] shrink-0">
@@ -407,7 +418,6 @@ export function ChatPage() {
                 onStop={stopGeneration}
                 isNewChat={messages.length === 0}
                 botName="bbot"
-                onOpenTemplates={() => setIsChatTemplatesOpen(true)}
               />
             </div>
           </div>

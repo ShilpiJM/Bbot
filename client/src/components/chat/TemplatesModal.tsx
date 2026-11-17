@@ -254,12 +254,26 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
   const [newDescription, setNewDescription] = useState('');
   const [newContent, setNewContent] = useState('');
 
-  // Load custom templates from localStorage
+  // Load custom templates from localStorage with full defensive validation
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setUserTemplates(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const sanitized: DocumentTemplate[] = parsed
+            .filter((item: any) => item && (typeof item.content === 'string' || typeof item.title === 'string'))
+            .map((item: any, idx: number) => ({
+              id: item.id || `custom_${Date.now()}_${idx}`,
+              title: typeof item.title === 'string' && item.title.trim() ? item.title : 'Custom Template',
+              category: item.category || 'custom',
+              description: typeof item.description === 'string' ? item.description : 'Custom saved template',
+              content: typeof item.content === 'string' ? item.content : '',
+              isCustom: true,
+              createdAt: item.createdAt || new Date().toISOString(),
+            }));
+          setUserTemplates(sanitized);
+        }
       }
     } catch (e) {
       console.error('Failed to load user templates:', e);
@@ -282,17 +296,22 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
 
   const filteredTemplates = useMemo(() => {
     return allTemplates.filter(tpl => {
+      if (!tpl) return false;
       const matchesCategory = selectedCategory === 'all' 
         ? true 
         : selectedCategory === 'custom' 
-        ? tpl.isCustom 
+        ? Boolean(tpl.isCustom) 
         : tpl.category === selectedCategory;
 
-      const q = searchQuery.toLowerCase().trim();
+      const q = (searchQuery || '').toLowerCase().trim();
+      const titleStr = (tpl.title || '').toLowerCase();
+      const descStr = (tpl.description || '').toLowerCase();
+      const contentStr = (tpl.content || '').toLowerCase();
+
       const matchesSearch = !q 
-        || tpl.title.toLowerCase().includes(q) 
-        || tpl.description.toLowerCase().includes(q)
-        || tpl.content.toLowerCase().includes(q);
+        || titleStr.includes(q) 
+        || descStr.includes(q)
+        || contentStr.includes(q);
 
       return matchesCategory && matchesSearch;
     });
@@ -353,9 +372,10 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
     }
   };
 
-  const handleCopy = (content: string, id: string, e: React.MouseEvent) => {
+  const handleCopy = (rawContent: any, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(content);
+    const textToCopy = typeof rawContent === 'string' ? rawContent : '';
+    navigator.clipboard.writeText(textToCopy);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -579,7 +599,7 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
                           {tpl.description}
                         </p>
                         <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] pt-1">
-                          <span>{tpl.content.split('\n').length} lines</span>
+                          <span>{(tpl?.content || '').split('\n').length} lines</span>
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"

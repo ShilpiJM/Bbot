@@ -140,7 +140,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                 Email Message Body
               </label>
               <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                {body.length} characters • {body.trim().split(/\s+/).filter(Boolean).length} words
+                {(body || '').length} characters • {((body || '').trim().split(/\s+/).filter(Boolean)).length} words
               </span>
             </div>
             <textarea
