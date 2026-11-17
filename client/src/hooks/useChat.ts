@@ -318,6 +318,8 @@ export function useChat(
         content = "The requested guidelines and policies have been retrieved from the document context. Operational standards and compliance requirements are established in the active workspace manual.";
       } else if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
         content = `Network connection lost. The server might still be processing. Please wait a moment and refresh.`;
+      } else if (err.message && err.message !== 'API Error') {
+        content = err.message;
       } else {
         content = `Unable to complete request. Please try again.`;
       }
@@ -528,6 +530,8 @@ export function useChat(
         content = "The requested guidelines and policies have been retrieved from the document context. Operational standards and compliance requirements are established in the active workspace manual.";
       } else if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
         content = `Network connection lost. The server might still be processing. Please wait a moment and refresh.`;
+      } else if (err.message && err.message !== 'API Error') {
+        content = err.message;
       } else {
         content = `Unable to complete request. Please try again.`;
       }

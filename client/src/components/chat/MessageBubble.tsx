@@ -74,7 +74,7 @@ const CodeBlock = ({ language, value, theme }: { language: string, value: string
     <div className="relative group rounded-md border border-[var(--border-subtle)] my-4 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-1.5 bg-[var(--bg-surface-hover)] border-b border-[var(--border-subtle)] text-[0.75rem] text-[var(--text-muted)] font-mono uppercase tracking-wider">
         {language}
-        <button 
+        <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors"
           title="Copy code"
@@ -170,7 +170,7 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
   const isAborted = !isUser && status === 'aborted';
   const { theme } = useTheme();
   const { t, language, currentLanguageOption } = useLanguage();
-  
+
   const safeContent = useMemo(() => {
     if (isTechnicalRateLimit) {
       return "The requested guidelines and policies have been retrieved from the document context. Operational standards and compliance requirements are established in the active workspace manual.";
@@ -337,7 +337,7 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
       setIsTranslating(false);
     }
   };
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(message.content);
   const [feedback, setFeedback] = useState<'positive' | 'negative' | null>(null);
@@ -346,7 +346,7 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
   const [showSuggestionInput, setShowSuggestionInput] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   const isLineChartRequested = useMemo(() => {
     if (isUser || status === 'sending') return false;
     const text = message.content.toLowerCase();
@@ -360,19 +360,19 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
 
   const toggleSpeech = () => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    
+
     if (isPlaying) {
       window.speechSynthesis.cancel();
       setIsPlaying(false);
     } else {
       window.speechSynthesis.cancel(); // Cancel any existing speech
-      
+
       // Clean up markdown before speaking
       const plainText = message.content
         .replace(/```[\s\S]*?```/g, ' Code block omitted. ')
         .replace(/\[Source: Page \d+\]/g, '')
         .replace(/[#*`]/g, '');
-        
+
       const utterance = new SpeechSynthesisUtterance(plainText);
       utterance.onend = () => setIsPlaying(false);
       utterance.onerror = () => setIsPlaying(false);
@@ -418,7 +418,7 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
       {!isUser && (
         <img src="/logo.png" alt="AI Avatar" className="w-[26px] h-[26px] sm:w-[32px] sm:h-[32px] rounded-full border-2 border-[var(--accent)] shrink-0 object-cover mt-0.5 sm:mt-1" />
       )}
-      
+
       <div className={clsx("flex flex-col gap-1 min-w-0", isUser ? "items-end max-w-[90%] sm:max-w-[78%]" : "items-start flex-1")}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1 px-1">
@@ -426,11 +426,11 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
             <span className="text-[var(--text-muted)] text-[0.7rem]">Just now</span>
           </div>
         )}
-        
+
         <div className={clsx(
           "leading-relaxed break-words overflow-hidden relative group/bubble",
-          isUser 
-            ? "bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] shadow-sm py-3 px-4 rounded-[var(--radius-lg)] rounded-br-[var(--sp-1)]" 
+          isUser
+            ? "bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] shadow-sm py-3 px-4 rounded-[var(--radius-lg)] rounded-br-[var(--sp-1)]"
             : isError
               ? "bg-[rgba(250,82,82,0.1)] border border-[rgba(250,82,82,0.35)] text-[var(--error)] py-3 px-4 rounded-[var(--radius-lg)] w-full"
               : "bg-transparent text-[var(--text-primary)] w-full"
@@ -481,419 +481,419 @@ function MessageBubbleComponent({ message, botName = 'bbot', onRetry, onDismiss,
                   initialType={isLineChartRequested ? 'line' : 'bar'}
                 />
               ))}
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeHtmlSchema]]}
-            components={{
-              a({ href, children, ...props }: any) {
-                if (href && (href.startsWith('/api/export/pdf/') || href.includes('export/pdf'))) {
-                  return (
-                    <a
-                      href={href}
-                      download
-                      className="my-3 inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-orange-500/10 hover:from-red-500/20 hover:to-orange-500/20 border border-red-500/30 hover:border-red-500/60 text-[var(--text-primary)] font-semibold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer group no-underline"
-                    >
-                      <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/20 text-red-500 group-hover:scale-110 transition-transform shrink-0">
-                        <FileText size={18} />
-                      </span>
-                      <div className="flex flex-col text-left">
-                        <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-xs">
-                          {children || 'Download PDF Document'}
-                          <Download size={13} className="text-red-500 group-hover:translate-y-0.5 transition-transform" />
-                        </span>
-                        <span className="text-[10px] text-[var(--text-muted)] font-normal mt-0.5">Presentation-ready executive PDF report • Click to download</span>
-                      </div>
-                    </a>
-                  );
-                }
-                return (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium inline-flex items-center gap-0.5"
-                    {...props}
-                  >
-                    {children}
-                  </a>
-                );
-              },
-              table({ children, ...props }: any) {
-                return (
-                  <div className="group/tbl my-4 w-full border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-surface)] shadow-2xs">
-                    <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface-hover)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-muted)]">
-                      <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                        <FileSpreadsheet size={13} className="text-emerald-600 dark:text-emerald-400" />
-                        <span>Structured Data Table</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleDownloadExcel}
-                        disabled={isDownloadingExcel}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/20 dark:hover:bg-emerald-500/30 transition-all cursor-pointer"
-                        title="Download as Excel spreadsheet (.xlsx)"
-                      >
-                        <Download size={11} />
-                        <span>{isDownloadingExcel ? 'Exporting...' : 'Download Excel (.xlsx)'}</span>
-                      </button>
-                    </div>
-                    <div className="overflow-x-auto w-full">
-                      <table className="w-full text-left border-collapse text-xs sm:text-sm" {...props}>
-                        {children}
-                      </table>
-                    </div>
-                  </div>
-                );
-              },
-              thead({ children, ...props }: any) {
-                return <thead className="bg-[var(--bg-surface-hover)] border-b border-[var(--border-subtle)]" {...props}>{children}</thead>;
-              },
-              th({ children, ...props }: any) {
-                return <th className="px-4 py-2 font-semibold text-[var(--text-primary)]" {...props}>{children}</th>;
-              },
-              td({ children, ...props }: any) {
-                return <td className="px-4 py-2 border-b border-[var(--border-subtle)] text-[var(--text-secondary)]" {...props}>{children}</td>;
-              },
-              code({ className, children, ...props }: any) {
-                const match = /language-(\w+)/.exec(className || '');
-                const codeStr = String(children).replace(/\n$/, '');
-                if (match) {
-                  const lang = match[1].toLowerCase();
-                  if (['mermaid', 'flowchart', 'diagram', 'dfd'].includes(lang) || /^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|mindmap)\b/m.test(codeStr)) {
-                    return <MermaidDiagram code={codeStr} theme={theme} />;
-                  }
-                  if (['process', 'flow', 'pipeline', 'workflow', 'steps'].includes(lang)) {
-                    const steps = parseProcessFlow(codeStr);
-                    if (steps && steps.length > 0) {
-                      return <ProcessFlowchart steps={steps} rawContent={codeStr} />;
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeHtmlSchema]]}
+                components={{
+                  a({ href, children, ...props }: any) {
+                    if (href && (href.startsWith('/api/export/pdf/') || href.includes('export/pdf'))) {
+                      return (
+                        <a
+                          href={href}
+                          download
+                          className="my-3 inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-orange-500/10 hover:from-red-500/20 hover:to-orange-500/20 border border-red-500/30 hover:border-red-500/60 text-[var(--text-primary)] font-semibold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer group no-underline"
+                        >
+                          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/20 text-red-500 group-hover:scale-110 transition-transform shrink-0">
+                            <FileText size={18} />
+                          </span>
+                          <div className="flex flex-col text-left">
+                            <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5 text-xs">
+                              {children || 'Download PDF Document'}
+                              <Download size={13} className="text-red-500 group-hover:translate-y-0.5 transition-transform" />
+                            </span>
+                            <span className="text-[10px] text-[var(--text-muted)] font-normal mt-0.5">Presentation-ready executive PDF report • Click to download</span>
+                          </div>
+                        </a>
+                      );
                     }
-                    return <MermaidDiagram code={codeStr} theme={theme} />;
-                  }
-                  if (['html', 'markup', 'xml'].includes(lang) && (codeStr.includes('flow-chart') || codeStr.includes('step-card') || codeStr.includes('style=') || codeStr.includes('display:') || codeStr.includes('<svg') || codeStr.includes('card'))) {
-                    return <HtmlDiagramPreview code={codeStr} theme={theme} />;
-                  }
-                  if (lang === 'chart') {
-                    try {
-                      const chartJson = JSON.parse(codeStr);
-                      if (chartJson.data && chartJson.xAxisKey && chartJson.dataKeys) {
-                        return (
-                          <DataChart
-                            data={chartJson.data}
-                            xAxisKey={chartJson.xAxisKey}
-                            dataKeys={chartJson.dataKeys}
-                            theme={theme}
-                            initialType={['bar', 'line', 'area'].includes(chartJson.type) ? chartJson.type : (isLineChartRequested ? 'line' : 'bar')}
-                          />
-                        );
+                    return (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium inline-flex items-center gap-0.5"
+                        {...props}
+                      >
+                        {children}
+                      </a>
+                    );
+                  },
+                  table({ children, ...props }: any) {
+                    return (
+                      <div className="group/tbl my-4 w-full border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-surface)] shadow-2xs">
+                        <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface-hover)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-muted)]">
+                          <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                            <FileSpreadsheet size={13} className="text-emerald-600 dark:text-emerald-400" />
+                            <span>Structured Data Table</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleDownloadExcel}
+                            disabled={isDownloadingExcel}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/20 dark:hover:bg-emerald-500/30 transition-all cursor-pointer"
+                            title="Download as Excel spreadsheet (.xlsx)"
+                          >
+                            <Download size={11} />
+                            <span>{isDownloadingExcel ? 'Exporting...' : 'Download Excel (.xlsx)'}</span>
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto w-full">
+                          <table className="w-full text-left border-collapse text-xs sm:text-sm" {...props}>
+                            {children}
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  },
+                  thead({ children, ...props }: any) {
+                    return <thead className="bg-[var(--bg-surface-hover)] border-b border-[var(--border-subtle)]" {...props}>{children}</thead>;
+                  },
+                  th({ children, ...props }: any) {
+                    return <th className="px-4 py-2 font-semibold text-[var(--text-primary)]" {...props}>{children}</th>;
+                  },
+                  td({ children, ...props }: any) {
+                    return <td className="px-4 py-2 border-b border-[var(--border-subtle)] text-[var(--text-secondary)]" {...props}>{children}</td>;
+                  },
+                  code({ className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const codeStr = String(children).replace(/\n$/, '');
+                    if (match) {
+                      const lang = match[1].toLowerCase();
+                      if (['mermaid', 'flowchart', 'diagram', 'dfd'].includes(lang) || /^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|mindmap)\b/m.test(codeStr)) {
+                        return <MermaidDiagram code={codeStr} theme={theme} />;
                       }
-                    } catch {}
-                  }
-                  return <CodeBlock language={match[1]} value={codeStr} theme={theme} />;
-                }
-                // Fallback for code blocks without explicit language annotation that contain diagram/flow syntax
-                if (codeStr.includes('\n') && (/^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|mindmap)\b/m.test(codeStr) || /(?:-->|->|==>)/.test(codeStr))) {
-                  return <MermaidDiagram code={codeStr} theme={theme} />;
-                }
-                return (
-                  <code className="bg-[var(--bg-surface-hover)] text-[var(--accent)] px-1.5 py-0.5 rounded-[var(--radius-sm)] font-mono text-sm" {...props}>
-                    {children}
-                  </code>
-                );
-              }
-            }}
-          >
-            {showOriginal && message.original_content
-              ? message.original_content
-              : (showTranslated && translatedText ? translatedText : safeContent)}
-          </ReactMarkdown>
-          </div>
-          )}
-
-        {isUser && (message.original_content || language !== 'en') && (
-          <div className="mt-1 flex items-center justify-end gap-1.5 text-[var(--text-muted)]">
-            {message.original_content ? (
-              <button
-                type="button"
-                onClick={() => setShowOriginal(!showOriginal)}
-                className="rounded px-2 py-0.5 text-[0.68rem] flex items-center gap-1 transition-colors border border-[var(--border-subtle)] hover:border-[var(--accent)] hover:text-[var(--text-primary)] cursor-pointer bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-2xs"
-                title={showOriginal ? t('showTranslated') : t('showOriginal')}
-              >
-                <Languages size={11} className="text-[var(--accent)]" />
-                <span>{showOriginal ? t('showTranslated') : `${t('showOriginal')} (English)`}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleTranslate}
-                disabled={isTranslating}
-                className={clsx(
-                  'rounded px-2 py-0.5 text-[0.68rem] flex items-center gap-1 transition-colors border cursor-pointer',
-                  showTranslated
-                    ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-semibold'
-                    : 'text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                )}
-                title={showTranslated ? t('showOriginal') : `${t('translateMessage')} (${currentLanguageOption.nativeName})`}
-              >
-                {isTranslating ? (
-                  <Loader2 size={11} className="animate-spin" />
-                ) : (
-                  <Languages size={11} />
-                )}
-                <span>{showTranslated ? t('showOriginal') : currentLanguageOption.nativeName}</span>
-              </button>
-            )}
-            {message.original_content && (
-              <span className="text-[0.65rem] text-[var(--text-muted)] italic">
-                {t('autoTranslatedNotice', { lang: currentLanguageOption.nativeName })}
-              </span>
-            )}
-          </div>
-        )}
-        
-        {isAborted && (
-          <div className="mt-2 text-[0.8rem] text-[var(--text-muted)]">Response was cut off</div>
-        )}
-        {isError && (
-          <div className="flex items-center gap-3 mt-2 text-xs">
-            {onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                disabled={isGenerating}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors underline cursor-pointer border-none bg-transparent p-0"
-              >
-                Retry
-              </button>
-            )}
-            {onDismiss && (
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="text-[var(--text-muted)] hover:text-[var(--error)] transition-colors underline cursor-pointer border-none bg-transparent p-0"
-              >
-                Dismiss
-              </button>
-            )}
-          </div>
-        )}
-
-        {!isUser && !isError && status === 'complete' && (
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[var(--text-muted)] flex-wrap" aria-label="Rate this answer">
-              <button
-                type="button"
-                onClick={() => { setShowSuggestionInput(false); submitFeedback('positive'); }}
-                aria-label="Helpful answer"
-                aria-pressed={feedback === 'positive'}
-                title="Helpful"
-                className={clsx(
-                  'rounded-lg p-1.5 transition-all duration-150',
-                  feedback === 'positive'
-                    ? 'text-emerald-700 bg-emerald-100 shadow-xs dark:text-emerald-400 dark:bg-emerald-500/15 dark:shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                    : 'text-[var(--text-muted)] hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400'
-                )}
-              >
-                <ThumbsUp size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFeedbackSaved(false);
-                  if (showSuggestionInput) {
-                    setShowSuggestionInput(false);
-                    submitFeedback('negative');
-                  } else {
-                    setShowSuggestionInput(true);
+                      if (['process', 'flow', 'pipeline', 'workflow', 'steps'].includes(lang)) {
+                        const steps = parseProcessFlow(codeStr);
+                        if (steps && steps.length > 0) {
+                          return <ProcessFlowchart steps={steps} rawContent={codeStr} />;
+                        }
+                        return <MermaidDiagram code={codeStr} theme={theme} />;
+                      }
+                      if (['html', 'markup', 'xml'].includes(lang) && (codeStr.includes('flow-chart') || codeStr.includes('step-card') || codeStr.includes('style=') || codeStr.includes('display:') || codeStr.includes('<svg') || codeStr.includes('card'))) {
+                        return <HtmlDiagramPreview code={codeStr} theme={theme} />;
+                      }
+                      if (lang === 'chart') {
+                        try {
+                          const chartJson = JSON.parse(codeStr);
+                          if (chartJson.data && chartJson.xAxisKey && chartJson.dataKeys) {
+                            return (
+                              <DataChart
+                                data={chartJson.data}
+                                xAxisKey={chartJson.xAxisKey}
+                                dataKeys={chartJson.dataKeys}
+                                theme={theme}
+                                initialType={['bar', 'line', 'area'].includes(chartJson.type) ? chartJson.type : (isLineChartRequested ? 'line' : 'bar')}
+                              />
+                            );
+                          }
+                        } catch { }
+                      }
+                      return <CodeBlock language={match[1]} value={codeStr} theme={theme} />;
+                    }
+                    // Fallback for code blocks without explicit language annotation that contain diagram/flow syntax
+                    if (codeStr.includes('\n') && (/^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|mindmap)\b/m.test(codeStr) || /(?:-->|->|==>)/.test(codeStr))) {
+                      return <MermaidDiagram code={codeStr} theme={theme} />;
+                    }
+                    return (
+                      <code className="bg-[var(--bg-surface-hover)] text-[var(--accent)] px-1.5 py-0.5 rounded-[var(--radius-sm)] font-mono text-sm" {...props}>
+                        {children}
+                      </code>
+                    );
                   }
                 }}
-                aria-label="Unhelpful answer"
-                aria-pressed={feedback === 'negative'}
-                title="Not helpful"
-                className={clsx(
-                  'rounded-lg p-1.5 transition-all duration-150',
-                  feedback === 'negative'
-                    ? 'text-rose-700 bg-rose-100 shadow-xs dark:text-rose-400 dark:bg-rose-500/15 dark:shadow-[0_0_10px_rgba(244,63,94,0.3)]'
-                    : 'text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-500/10 dark:hover:text-rose-400'
-                )}
               >
-                <ThumbsDown size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={toggleSpeech}
-                aria-label={isPlaying ? "Stop reading" : "Read aloud"}
-                title={isPlaying ? "Stop reading" : "Read aloud"}
-                className={clsx(
-                  'rounded-lg p-1.5 transition-all duration-150',
-                  isPlaying
-                    ? 'text-sky-700 bg-sky-100 dark:text-sky-400 dark:bg-sky-500/15 dark:shadow-[0_0_10px_rgba(56,189,248,0.3)] animate-pulse'
-                    : 'text-[var(--text-muted)] hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-500/10 dark:hover:text-sky-400'
-                )}
-              >
-                {isPlaying ? <VolumeX size={14} /> : <Volume2 size={14} />}
-              </button>
-              {language !== 'en' && (
+                {showOriginal && message.original_content
+                  ? message.original_content
+                  : (showTranslated && translatedText ? translatedText : safeContent)}
+              </ReactMarkdown>
+            </div>
+          )}
+
+          {isUser && (message.original_content || language !== 'en') && (
+            <div className="mt-1 flex items-center justify-end gap-1.5 text-[var(--text-muted)]">
+              {message.original_content ? (
+                <button
+                  type="button"
+                  onClick={() => setShowOriginal(!showOriginal)}
+                  className="rounded px-2 py-0.5 text-[0.68rem] flex items-center gap-1 transition-colors border border-[var(--border-subtle)] hover:border-[var(--accent)] hover:text-[var(--text-primary)] cursor-pointer bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-2xs"
+                  title={showOriginal ? t('showTranslated') : t('showOriginal')}
+                >
+                  <Languages size={11} className="text-[var(--accent)]" />
+                  <span>{showOriginal ? t('showTranslated') : `${t('showOriginal')} (English)`}</span>
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={handleTranslate}
                   disabled={isTranslating}
                   className={clsx(
-                    'rounded-full px-2.5 py-0.5 text-[0.7rem] font-medium flex items-center gap-1.5 transition-all duration-150 border cursor-pointer',
+                    'rounded px-2 py-0.5 text-[0.68rem] flex items-center gap-1 transition-colors border cursor-pointer',
                     showTranslated
-                      ? 'text-indigo-900 border-indigo-400 bg-indigo-100 dark:text-indigo-300 dark:border-indigo-400 dark:bg-indigo-500/15 dark:shadow-[0_0_12px_rgba(99,102,241,0.3)] font-semibold'
-                      : 'text-indigo-900 border-indigo-300 bg-indigo-50/80 hover:bg-indigo-100 hover:border-indigo-400 dark:text-[var(--text-muted)] dark:border-indigo-500/30 dark:bg-indigo-500/5 dark:hover:text-indigo-300 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10'
+                      ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-semibold'
+                      : 'text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
                   )}
                   title={showTranslated ? t('showOriginal') : `${t('translateMessage')} (${currentLanguageOption.nativeName})`}
                 >
                   {isTranslating ? (
-                    <Loader2 size={12} className="animate-spin text-indigo-600 dark:text-indigo-400" />
+                    <Loader2 size={11} className="animate-spin" />
                   ) : (
-                    <Languages size={12} className="text-indigo-600 dark:text-indigo-400" />
+                    <Languages size={11} />
                   )}
                   <span>{showTranslated ? t('showOriginal') : currentLanguageOption.nativeName}</span>
                 </button>
               )}
-              {/* 🪟 1-Click Open in Canvas */}
-              {message.content && message.content.length > 20 && onOpenCanvas && (
-                <button
-                  type="button"
-                  onClick={() => onOpenCanvas({
-                    id: message.id,
-                    title: message.content.trim().split('\n')[0].replace(/[#*`_]/g, '').slice(0, 50) || 'bbot Document',
-                    content: showTranslated && translatedText ? translatedText : safeContent
-                  })}
-                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 dark:text-indigo-300 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:hover:bg-indigo-500/20 shadow-2xs hover:shadow-xs group shrink-0"
-                  title="Open this response in interactive split-screen Canvas"
-                >
-                  <LayoutPanelLeft size={12} className="text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
-                  <span>Canvas</span>
-                </button>
+              {message.original_content && (
+                <span className="text-[0.65rem] text-[var(--text-muted)] italic">
+                  {t('autoTranslatedNotice', { lang: currentLanguageOption.nativeName })}
+                </span>
               )}
-              {/* ✨ 1-Click Visualize in Studio Bridge */}
-              {message.content && message.content.length > 20 && (
-                <button
-                  type="button"
-                  onClick={handleVisualizeInStudio}
-                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30 dark:hover:bg-amber-500/20 shadow-2xs hover:shadow-xs group shrink-0"
-                  title="Transform this answer into an interactive visual diagram in Studio"
-                >
-                  <Sparkles size={12} className="text-amber-600 dark:text-amber-400 group-hover:rotate-12 transition-transform shrink-0" />
-                  <span>Studio</span>
-                </button>
-              )}
-              {/* 📄 1-Click Download PDF */}
-              {message.content && message.content.length > 20 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={isDownloadingPdf}
-                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-red-800 bg-red-50 hover:bg-red-100 border-red-300 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/30 dark:hover:bg-red-500/20 shadow-2xs hover:shadow-xs group shrink-0"
-                  title="Download this response as a presentation-grade PDF document"
-                >
-                  {isDownloadingPdf ? (
-                    <Loader2 size={12} className="animate-spin text-red-600 dark:text-red-400 shrink-0" />
-                  ) : (
-                    <FileText size={12} className="text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform shrink-0" />
-                  )}
-                  <span>{isDownloadingPdf ? 'PDF...' : 'PDF'}</span>
-                </button>
-              )}
-              {/* 📊 1-Click Download Excel (if table present) */}
-              {message.content && (message.content.includes('|') && message.content.includes('---')) && (
-                <button
-                  type="button"
-                  onClick={handleDownloadExcel}
-                  disabled={isDownloadingExcel}
-                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:hover:bg-emerald-500/20 shadow-2xs hover:shadow-xs group shrink-0"
-                  title="Download tabular data as styled Excel spreadsheet (.xlsx)"
-                >
-                  {isDownloadingExcel ? (
-                    <Loader2 size={12} className="animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  ) : (
-                    <FileSpreadsheet size={12} className="text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
-                  )}
-                  <span>{isDownloadingExcel ? 'Excel...' : 'Excel'}</span>
-                </button>
-              )}
-              {/* 📝 1-Click Download Word */}
-              {message.content && message.content.length > 50 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadDocx}
-                  disabled={isDownloadingDocx}
-                  className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-300 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:bg-blue-500/20 shadow-2xs hover:shadow-xs group shrink-0"
-                  title="Download this response as Microsoft Word document (.docx)"
-                >
-                  {isDownloadingDocx ? (
-                    <Loader2 size={12} className="animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
-                  ) : (
-                    <FileText size={12} className="text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
-                  )}
-                  <span>{isDownloadingDocx ? 'Word...' : 'Word'}</span>
-                </button>
-              )}
-              {feedbackSaved && <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Thanks for your feedback</span>}
             </div>
-            {showSuggestionInput && (
-              <div className="flex flex-col w-full max-w-md mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="flex items-center gap-2 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] rounded-full px-4 py-2 focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] transition-all shadow-sm">
-                  <input 
-                    value={suggestion}
-                    onChange={(e) => setSuggestion(e.target.value)}
-                    placeholder="Provide a correction to train the bot..."
-                    className="flex-1 bg-transparent text-[var(--text-primary)] text-xs focus:outline-none placeholder-[var(--text-muted)]"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && suggestion.trim()) {
-                        e.preventDefault();
-                        submitFeedback('negative', suggestion);
-                      }
-                    }}
-                    autoFocus
-                  />
-                  {suggestion.trim() ? (
-                    <button type="button" onClick={() => submitFeedback('negative', suggestion)} className="text-[var(--accent)] hover:opacity-80 transition-opacity" title="Save correction">
-                      <Send size={14} />
-                    </button>
-                  ) : (
-                    <button type="button" onClick={() => { setShowSuggestionInput(false); submitFeedback('negative'); }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors text-[10px] uppercase font-bold tracking-wider px-1">
-                      Skip
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        {!isUser && !isError && suggestedPrompts?.length && onSuggestedPrompt && (
-          <div className="mt-3.5 flex flex-wrap gap-2" aria-label="Suggested document actions">
-            {suggestedPrompts.map((prompt, idx) => {
-              const theme = OPTION_CHIP_THEMES[idx % OPTION_CHIP_THEMES.length];
-              return (
+          )}
+
+          {isAborted && (
+            <div className="mt-2 text-[0.8rem] text-[var(--text-muted)]">Response was cut off</div>
+          )}
+          {isError && (
+            <div className="flex items-center gap-3 mt-2 text-xs">
+              {onRetry && (
                 <button
-                  key={prompt}
                   type="button"
+                  onClick={onRetry}
                   disabled={isGenerating}
-                  onClick={() => {
-                    if (isGenerating) return;
-                    onSuggestedPrompt(prompt);
-                  }}
+                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors underline cursor-pointer border-none bg-transparent p-0"
+                >
+                  Retry
+                </button>
+              )}
+              {onDismiss && (
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="text-[var(--text-muted)] hover:text-[var(--error)] transition-colors underline cursor-pointer border-none bg-transparent p-0"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          )}
+
+          {!isUser && !isError && status === 'complete' && (
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="flex items-center gap-1 sm:gap-1.5 text-[var(--text-muted)] flex-wrap" aria-label="Rate this answer">
+                <button
+                  type="button"
+                  onClick={() => { setShowSuggestionInput(false); submitFeedback('positive'); }}
+                  aria-label="Helpful answer"
+                  aria-pressed={feedback === 'positive'}
+                  title="Helpful"
                   className={clsx(
-                    'group inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-left text-xs font-medium transition-all duration-150 backdrop-blur-xs shadow-xs',
-                    'hover:scale-[1.02] active:scale-[0.98]',
-                    isGenerating && 'opacity-50 pointer-events-none cursor-not-allowed',
-                    theme.bg,
-                    theme.border,
-                    theme.text,
-                    theme.glow
+                    'rounded-lg p-1.5 transition-all duration-150',
+                    feedback === 'positive'
+                      ? 'text-emerald-700 bg-emerald-100 shadow-xs dark:text-emerald-400 dark:bg-emerald-500/15 dark:shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                      : 'text-[var(--text-muted)] hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400'
                   )}
                 >
-                  <span className={clsx('h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', theme.dot)} />
-                  <span className="leading-snug">{prompt}</span>
+                  <ThumbsUp size={14} />
                 </button>
-              );
-            })}
-          </div>
-        )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedbackSaved(false);
+                    if (showSuggestionInput) {
+                      setShowSuggestionInput(false);
+                      submitFeedback('negative');
+                    } else {
+                      setShowSuggestionInput(true);
+                    }
+                  }}
+                  aria-label="Unhelpful answer"
+                  aria-pressed={feedback === 'negative'}
+                  title="Not helpful"
+                  className={clsx(
+                    'rounded-lg p-1.5 transition-all duration-150',
+                    feedback === 'negative'
+                      ? 'text-rose-700 bg-rose-100 shadow-xs dark:text-rose-400 dark:bg-rose-500/15 dark:shadow-[0_0_10px_rgba(244,63,94,0.3)]'
+                      : 'text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-500/10 dark:hover:text-rose-400'
+                  )}
+                >
+                  <ThumbsDown size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleSpeech}
+                  aria-label={isPlaying ? "Stop reading" : "Read aloud"}
+                  title={isPlaying ? "Stop reading" : "Read aloud"}
+                  className={clsx(
+                    'rounded-lg p-1.5 transition-all duration-150',
+                    isPlaying
+                      ? 'text-sky-700 bg-sky-100 dark:text-sky-400 dark:bg-sky-500/15 dark:shadow-[0_0_10px_rgba(56,189,248,0.3)] animate-pulse'
+                      : 'text-[var(--text-muted)] hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-500/10 dark:hover:text-sky-400'
+                  )}
+                >
+                  {isPlaying ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                </button>
+                {language !== 'en' && (
+                  <button
+                    type="button"
+                    onClick={handleTranslate}
+                    disabled={isTranslating}
+                    className={clsx(
+                      'rounded-full px-2.5 py-0.5 text-[0.7rem] font-medium flex items-center gap-1.5 transition-all duration-150 border cursor-pointer',
+                      showTranslated
+                        ? 'text-indigo-900 border-indigo-400 bg-indigo-100 dark:text-indigo-300 dark:border-indigo-400 dark:bg-indigo-500/15 dark:shadow-[0_0_12px_rgba(99,102,241,0.3)] font-semibold'
+                        : 'text-indigo-900 border-indigo-300 bg-indigo-50/80 hover:bg-indigo-100 hover:border-indigo-400 dark:text-[var(--text-muted)] dark:border-indigo-500/30 dark:bg-indigo-500/5 dark:hover:text-indigo-300 dark:hover:border-indigo-400 dark:hover:bg-indigo-500/10'
+                    )}
+                    title={showTranslated ? t('showOriginal') : `${t('translateMessage')} (${currentLanguageOption.nativeName})`}
+                  >
+                    {isTranslating ? (
+                      <Loader2 size={12} className="animate-spin text-indigo-600 dark:text-indigo-400" />
+                    ) : (
+                      <Languages size={12} className="text-indigo-600 dark:text-indigo-400" />
+                    )}
+                    <span>{showTranslated ? t('showOriginal') : currentLanguageOption.nativeName}</span>
+                  </button>
+                )}
+                {/* 🪟 1-Click Open in Canvas */}
+                {message.content && message.content.length > 20 && onOpenCanvas && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenCanvas({
+                      id: message.id,
+                      title: message.content.trim().split('\n')[0].replace(/[#*`_]/g, '').slice(0, 50) || 'bbot Document',
+                      content: showTranslated && translatedText ? translatedText : safeContent
+                    })}
+                    className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 dark:text-indigo-300 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:hover:bg-indigo-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                    title="Open this response in interactive split-screen Canvas"
+                  >
+                    <LayoutPanelLeft size={12} className="text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+                    <span>Canvas</span>
+                  </button>
+                )}
+                {/* ✨ 1-Click Visualize in Studio Bridge */}
+                {message.content && message.content.length > 20 && (
+                  <button
+                    type="button"
+                    onClick={handleVisualizeInStudio}
+                    className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30 dark:hover:bg-amber-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                    title="Transform this answer into an interactive visual diagram in Studio"
+                  >
+                    <Sparkles size={12} className="text-amber-600 dark:text-amber-400 group-hover:rotate-12 transition-transform shrink-0" />
+                    <span>Studio</span>
+                  </button>
+                )}
+                {/* 📄 1-Click Download PDF */}
+                {message.content && message.content.length > 20 && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={isDownloadingPdf}
+                    className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-red-800 bg-red-50 hover:bg-red-100 border-red-300 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/30 dark:hover:bg-red-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                    title="Download this response as a presentation-grade PDF document"
+                  >
+                    {isDownloadingPdf ? (
+                      <Loader2 size={12} className="animate-spin text-red-600 dark:text-red-400 shrink-0" />
+                    ) : (
+                      <FileText size={12} className="text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform shrink-0" />
+                    )}
+                    <span>{isDownloadingPdf ? 'PDF...' : 'PDF'}</span>
+                  </button>
+                )}
+                {/* 📊 1-Click Download Excel (if table present) */}
+                {message.content && (message.content.includes('|') && message.content.includes('---')) && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadExcel}
+                    disabled={isDownloadingExcel}
+                    className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:hover:bg-emerald-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                    title="Download tabular data as styled Excel spreadsheet (.xlsx)"
+                  >
+                    {isDownloadingExcel ? (
+                      <Loader2 size={12} className="animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <FileSpreadsheet size={12} className="text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+                    )}
+                    <span>{isDownloadingExcel ? 'Excel...' : 'Excel'}</span>
+                  </button>
+                )}
+                {/* 📝 1-Click Download Word */}
+                {message.content && message.content.length > 50 && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadDocx}
+                    disabled={isDownloadingDocx}
+                    className="rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold flex items-center gap-1.5 transition-all duration-150 border cursor-pointer text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-300 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:bg-blue-500/20 shadow-2xs hover:shadow-xs group shrink-0"
+                    title="Download this response as Microsoft Word document (.docx)"
+                  >
+                    {isDownloadingDocx ? (
+                      <Loader2 size={12} className="animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+                    ) : (
+                      <FileText size={12} className="text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
+                    )}
+                    <span>{isDownloadingDocx ? 'Word...' : 'Word'}</span>
+                  </button>
+                )}
+                {feedbackSaved && <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Thanks for your feedback</span>}
+              </div>
+              {showSuggestionInput && (
+                <div className="flex flex-col w-full max-w-md mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="flex items-center gap-2 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] rounded-full px-4 py-2 focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] transition-all shadow-sm">
+                    <input
+                      value={suggestion}
+                      onChange={(e) => setSuggestion(e.target.value)}
+                      placeholder="Provide a correction to train the bot..."
+                      className="flex-1 bg-transparent text-[var(--text-primary)] text-xs focus:outline-none placeholder-[var(--text-muted)]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && suggestion.trim()) {
+                          e.preventDefault();
+                          submitFeedback('negative', suggestion);
+                        }
+                      }}
+                      autoFocus
+                    />
+                    {suggestion.trim() ? (
+                      <button type="button" onClick={() => submitFeedback('negative', suggestion)} className="text-[var(--accent)] hover:opacity-80 transition-opacity" title="Save correction">
+                        <Send size={14} />
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => { setShowSuggestionInput(false); submitFeedback('negative'); }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors text-[10px] uppercase font-bold tracking-wider px-1">
+                        Skip
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {!isUser && !isError && suggestedPrompts?.length && onSuggestedPrompt && (
+            <div className="mt-3.5 flex flex-wrap gap-2" aria-label="Suggested document actions">
+              {suggestedPrompts.map((prompt, idx) => {
+                const theme = OPTION_CHIP_THEMES[idx % OPTION_CHIP_THEMES.length];
+                return (
+                  <button
+                    key={prompt}
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={() => {
+                      if (isGenerating) return;
+                      onSuggestedPrompt(prompt);
+                    }}
+                    className={clsx(
+                      'group inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-left text-xs font-medium transition-all duration-150 backdrop-blur-xs shadow-xs',
+                      'hover:scale-[1.02] active:scale-[0.98]',
+                      isGenerating && 'opacity-50 pointer-events-none cursor-not-allowed',
+                      theme.bg,
+                      theme.border,
+                      theme.text,
+                      theme.glow
+                    )}
+                  >
+                    <span className={clsx('h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', theme.dot)} />
+                    <span className="leading-snug">{prompt}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

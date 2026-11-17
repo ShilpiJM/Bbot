@@ -328,20 +328,31 @@ def update_conversation_title(conversation_id: str, req: UpdateConversationTitle
 # --- Chat Endpoint ---
 
 def get_user_id(request: Request):
-    # Try to extract from authorization header since slowapi runs before dependencies
+    token = None
     auth = request.headers.get("Authorization")
     if auth and auth.startswith("Bearer "):
+        token = auth.split(" ")[1]
+    if not token:
+        token = request.cookies.get("access_token")
+
+    if token:
         try:
             import jwt
             from src.config import settings
-            payload = jwt.decode(auth.split(" ")[1], settings.JWT_SECRET, algorithms=["HS256"], options={"verify_exp": False})
-            return payload.get("sub", "unknown")
-        except:
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"], options={"verify_exp": False})
+            sub = payload.get("sub")
+            if sub:
+                return str(sub)
+        except Exception:
             pass
-    return request.client.host
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 @router.post("/chat")
-@limiter.limit("10/minute", key_func=get_user_id)
+@limiter.limit("60/minute", key_func=get_user_id)
 def chat_endpoint(request: Request, chat_req: ChatRequest, service: ChatService = Depends(get_chat_service), repo: ConversationRepository = Depends(get_repository), current_user: dict = Depends(get_current_user)):
     # 1. Resolve conversation
     conv_id = chat_req.conversation_id
