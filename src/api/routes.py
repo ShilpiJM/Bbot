@@ -618,6 +618,7 @@ class GeneratePdfRequest(BaseModel):
     title: Optional[str] = "Report Document"
     filename_hint: Optional[str] = "report"
     watermark: Optional[str] = None
+    watermark_image: Optional[str] = None
     include_signoff: Optional[bool] = False
 
 @router.post("/export/generate-pdf")
@@ -631,6 +632,7 @@ def generate_pdf_endpoint(req: GeneratePdfRequest, current_user: dict = Depends(
             filename_hint=req.filename_hint or "report",
             author=current_user.get("username", "TRPW bbot"),
             watermark=req.watermark,
+            watermark_image=req.watermark_image,
             include_signoff=bool(req.include_signoff)
         )
         return res
@@ -661,6 +663,7 @@ class ExportDocumentRequest(BaseModel):
     title: Optional[str] = "Data Export"
     filename_hint: Optional[str] = "bbot_export"
     watermark: Optional[str] = None
+    watermark_image: Optional[str] = None
     include_signoff: Optional[bool] = False
 
 
@@ -706,6 +709,7 @@ def generate_docx_endpoint(req: ExportDocumentRequest, current_user: dict = Depe
             title=req.title or "Intelligence Report",
             filename_hint=req.filename_hint or "bbot_document",
             watermark=req.watermark,
+            watermark_image=req.watermark_image,
             include_signoff=bool(req.include_signoff)
         )
         return res

@@ -57,13 +57,38 @@ class NumberedCanvas(canvas.Canvas):
 
         # 1. Diagonal Watermark across the center
         watermark_text = getattr(self, "watermark", None)
+        watermark_image = getattr(self, "watermark_image", None)
+
+        # 1a. Custom Image Watermark (centered logo / stamp)
+        if watermark_image and os.path.exists(watermark_image):
+            try:
+                self.saveState()
+                img_w = 260
+                img_h = 260
+                center_x = (letter[0] - img_w) / 2.0
+                center_y = (letter[1] - img_h) / 2.0
+                if hasattr(self, 'setFillAlpha'):
+                    self.setFillAlpha(0.18)
+                self.drawImage(watermark_image, center_x, center_y, width=img_w, height=img_h, mask='auto', preserveAspectRatio=True)
+                self.restoreState()
+            except Exception as e:
+                logger.warning(f"Could not render watermark image: {e}")
+
+        # 1b. Custom Text Watermark (with dynamic font sizing)
         if watermark_text:
             self.saveState()
-            self.setFont("Helvetica-Bold", 50)
+            text_str = str(watermark_text).strip().upper()
+            if len(text_str) <= 12:
+                font_size = 50
+            elif len(text_str) <= 22:
+                font_size = 36
+            else:
+                font_size = max(18, int(500 / len(text_str)))
+            self.setFont("Helvetica-Bold", font_size)
             self.setFillColor(colors.HexColor("#94A3B8"), alpha=0.14)
             self.translate(letter[0] / 2.0, letter[1] / 2.0)
             self.rotate(42)
-            self.drawCentredString(0, 0, str(watermark_text).upper())
+            self.drawCentredString(0, 0, text_str)
             self.restoreState()
 
         # 2. Corporate Header (Top left: TRPW STRATEGIC PARTNERS, Top right: Classification / bbot doc)
@@ -90,10 +115,11 @@ class NumberedCanvas(canvas.Canvas):
         self.restoreState()
 
 
-def get_numbered_canvas_class(watermark: Optional[str] = None, author: str = "TRPW bbot"):
+def get_numbered_canvas_class(watermark: Optional[str] = None, watermark_image: Optional[str] = None, author: str = "TRPW bbot"):
     class DynamicNumberedCanvas(NumberedCanvas):
         pass
     DynamicNumberedCanvas.watermark = watermark
+    DynamicNumberedCanvas.watermark_image = watermark_image
     DynamicNumberedCanvas.doc_author = author
     return DynamicNumberedCanvas
 
@@ -135,17 +161,38 @@ class PDFExportService:
         filename_hint: str = "report",
         author: str = "TRPW bbot",
         watermark: Optional[str] = None,
+        watermark_image: Optional[str] = None,
         include_signoff: bool = False
     ) -> Dict[str, Any]:
         """
         Builds a high-resolution, presentation-grade PDF from Markdown content.
-        Supports corporate branding, dynamic watermark (Confidential, Draft, Approved),
+        Supports corporate branding, dynamic watermark (Confidential, Draft, Approved, custom text, or image logo),
         and executive sign-off governance block.
         """
         file_id = f"pdf_{uuid.uuid4().hex[:12]}"
         safe_hint = re.sub(r"[^a-zA-Z0-9_\-]", "_", filename_hint).strip("_") or "document"
         filename = f"{safe_hint}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         file_path = self.storage_dir / f"{file_id}.pdf"
+
+        # Resolve image watermark if provided as base64 data URL
+        temp_img_file = None
+        resolved_watermark_img = None
+        if watermark_image and isinstance(watermark_image, str):
+            if watermark_image.startswith("data:image"):
+                import base64, tempfile
+                try:
+                    header, encoded = watermark_image.split(",", 1)
+                    img_data = base64.b64decode(encoded)
+                    suffix = ".png" if "png" in header else ".jpg"
+                    tfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    tfile.write(img_data)
+                    tfile.close()
+                    temp_img_file = tfile.name
+                    resolved_watermark_img = temp_img_file
+                except Exception as e:
+                    logger.warning(f"Failed to decode base64 watermark image: {e}")
+            elif os.path.exists(watermark_image):
+                resolved_watermark_img = watermark_image
 
         styles = getSampleStyleSheet()
 
@@ -373,8 +420,12 @@ class PDFExportService:
                 signoff_table
             ]))
 
-        # Dynamic canvas maker with branding & watermark
-        canvas_class = get_numbered_canvas_class(watermark=watermark, author=author)
+        # Dynamic canvas maker with branding, text watermark & image logo
+        canvas_class = get_numbered_canvas_class(
+            watermark=watermark, 
+            watermark_image=resolved_watermark_img, 
+            author=author
+        )
 
         # Build document with guaranteed fallback
         doc = SimpleDocTemplate(
@@ -386,20 +437,27 @@ class PDFExportService:
             bottomMargin=42,
         )
         try:
-            doc.build(story, canvasmaker=canvas_class)
-        except Exception as build_err:
-            logger.warning(f"ReportLab rich build failed: {build_err}. Falling back to plain text PDF.")
-            fallback_story = [
-                Paragraph(f"<b>{html.escape(title)}</b>", title_style),
-                Paragraph(f"Author: {html.escape(author)} &nbsp;|&nbsp; Date: {today_full}", subtitle_style),
-                HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CBD5E1"), spaceAfter=14),
-            ]
-            for para in content.split("\n\n"):
-                if para.strip():
-                    clean_para = html.escape(re.sub(r"<[^>]+>", "", para.strip()))
-                    fallback_story.append(Paragraph(clean_para.replace("\n", "<br/>"), body_style))
-                    fallback_story.append(Spacer(1, 6))
-            doc.build(fallback_story, canvasmaker=canvas_class)
+            try:
+                doc.build(story, canvasmaker=canvas_class)
+            except Exception as build_err:
+                logger.warning(f"ReportLab rich build failed: {build_err}. Falling back to plain text PDF.")
+                fallback_story = [
+                    Paragraph(f"<b>{html.escape(title)}</b>", title_style),
+                    Paragraph(f"Author: {html.escape(author)} &nbsp;|&nbsp; Date: {today_full}", subtitle_style),
+                    HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CBD5E1"), spaceAfter=14),
+                ]
+                for para in content.split("\n\n"):
+                    if para.strip():
+                        clean_para = html.escape(re.sub(r"<[^>]+>", "", para.strip()))
+                        fallback_story.append(Paragraph(clean_para.replace("\n", "<br/>"), body_style))
+                        fallback_story.append(Spacer(1, 6))
+                doc.build(fallback_story, canvasmaker=canvas_class)
+        finally:
+            if temp_img_file and os.path.exists(temp_img_file):
+                try:
+                    os.remove(temp_img_file)
+                except Exception:
+                    pass
 
         logger.info(f"Generated PDF file '{filename}' at {file_path} (size: {file_path.stat().st_size} bytes)")
 

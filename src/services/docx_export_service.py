@@ -44,12 +44,30 @@ class DocxExportService:
         title: str = "Intelligence Report",
         filename_hint: str = "bbot_document",
         watermark: str | None = None,
+        watermark_image: str | None = None,
         include_signoff: bool = False
     ) -> Dict[str, Any]:
         """
         Builds an executive Word document (.docx) from markdown text, headings, lists, and tables.
-        Supports corporate branding headers, classification watermarks, and governance sign-off.
+        Supports corporate branding headers, classification watermarks, image logos, and governance sign-off.
         """
+        temp_img_file = None
+        if watermark_image and isinstance(watermark_image, str):
+            if watermark_image.startswith("data:image"):
+                import base64, tempfile
+                try:
+                    header, encoded = watermark_image.split(",", 1)
+                    img_data = base64.b64decode(encoded)
+                    suffix = ".png" if "png" in header else ".jpg"
+                    tfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    tfile.write(img_data)
+                    tfile.close()
+                    temp_img_file = tfile.name
+                except Exception:
+                    pass
+            elif os.path.exists(watermark_image):
+                temp_img_file = watermark_image
+
         doc = Document()
 
         # Set page margins & corporate headers/footers
@@ -75,6 +93,17 @@ class DocxExportService:
             frun.font.name = "Segoe UI"
             frun.font.size = Pt(8)
             frun.font.color.rgb = RGBColor(0x94, 0xA3, 0xB8)
+
+        # Custom Image Logo / Watermark
+        if temp_img_file and os.path.exists(temp_img_file):
+            try:
+                logo_p = doc.add_paragraph()
+                logo_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                logo_run = logo_p.add_run()
+                logo_run.add_picture(temp_img_file, width=Inches(1.8))
+                logo_p.paragraph_format.space_after = Pt(6)
+            except Exception as e:
+                logger.warning(f"Failed to add image to Word doc: {e}")
 
         # Classification Banner if watermark provided
         if watermark:
@@ -275,6 +304,12 @@ class DocxExportService:
         filename = f"{safe_hint}_{file_id[:8]}.docx"
         file_path = self.export_dir / filename
         doc.save(str(file_path))
+
+        if temp_img_file and os.path.exists(temp_img_file):
+            try:
+                os.remove(temp_img_file)
+            except Exception:
+                pass
 
         logger.info(f"Generated Word export '{filename}' (size: {file_path.stat().st_size} bytes)")
         return {
