@@ -13,7 +13,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useConversations } from '../hooks/useConversations';
 import { LanguageSelector } from '../components/chat/LanguageSelector';
 import { useProjects } from '../hooks/useProjects';
-import { Sun, Moon, HelpCircle, Menu, Sparkles, Languages, Loader2, Folder, GitCompare, Bookmark } from 'lucide-react';
+import { Sun, Moon, HelpCircle, Menu, Sparkles, Languages, Loader2, Folder, GitCompare, Bookmark, FileText, Maximize2, X } from 'lucide-react';
 import clsx from 'clsx';
 
 export function ChatPage() {
@@ -44,6 +44,8 @@ export function ChatPage() {
   const [explicitNewChat, setExplicitNewChat] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [canvasArtifact, setCanvasArtifact] = useState<CanvasArtifact | null>(null);
+  const [isCanvasMinimized, setIsCanvasMinimized] = useState(false);
+  const [isCanvasMaximized, setIsCanvasMaximized] = useState(false);
   const [isChatTemplatesOpen, setIsChatTemplatesOpen] = useState(false);
   const { conversations = [] } = useConversations();
   const { projects = [] } = useProjects();
@@ -420,7 +422,9 @@ export function ChatPage() {
           {/* Chat Column */}
           <div className={clsx(
             "flex flex-col h-full min-w-0 transition-all duration-300",
-            canvasArtifact ? "w-full md:w-1/2 lg:w-5/12 border-r border-[var(--border-subtle)]" : "flex-1"
+            canvasArtifact && !isCanvasMinimized && !isCanvasMaximized 
+              ? "w-full md:w-1/2 lg:w-5/12 border-r border-[var(--border-subtle)]" 
+              : "flex-1"
           )}>
             <ChatArea
               messages={messages}
@@ -431,7 +435,10 @@ export function ChatPage() {
               onDeleteMessage={deleteMessage}
               documentsCount={documents.length}
               onSuggestedPrompt={handleSendMessage}
-              onOpenCanvas={(art) => setCanvasArtifact(art)}
+              onOpenCanvas={(art) => {
+                setCanvasArtifact(art);
+                setIsCanvasMinimized(false);
+              }}
               starterQuestions={[t('starterGreeting')]}
             />
             
@@ -450,12 +457,24 @@ export function ChatPage() {
             </div>
           </div>
 
-          {/* Interactive Canvas Side Panel (Split on desktop, modal on mobile) */}
-          {canvasArtifact && (
-            <div className="fixed md:static inset-0 md:inset-auto z-40 md:z-20 flex flex-col flex-1 h-full min-w-0 bg-[var(--bg-surface)]">
+          {/* Interactive Canvas Side Panel (Split on desktop, modal on mobile, or full-screen maximized) */}
+          {canvasArtifact && !isCanvasMinimized && (
+            <div className={clsx(
+              "flex flex-col h-full min-w-0 bg-[var(--bg-surface)] transition-all duration-300",
+              isCanvasMaximized
+                ? "fixed inset-0 z-50 w-full"
+                : "fixed md:static inset-0 md:inset-auto z-40 md:z-20 flex-1"
+            )}>
               <CanvasPanel
                 artifact={canvasArtifact}
-                onClose={() => setCanvasArtifact(null)}
+                isMaximized={isCanvasMaximized}
+                onToggleMaximize={() => setIsCanvasMaximized(!isCanvasMaximized)}
+                onMinimize={() => setIsCanvasMinimized(true)}
+                onClose={() => {
+                  setCanvasArtifact(null);
+                  setIsCanvasMinimized(false);
+                  setIsCanvasMaximized(false);
+                }}
                 onSendMessage={(txt) => handleSendMessage(txt)}
                 onUpdateContent={(newContent) => {
                   setCanvasArtifact(prev => prev ? { ...prev, content: newContent } : null);
@@ -464,6 +483,44 @@ export function ChatPage() {
             </div>
           )}
         </div>
+
+        {/* Minimized Canvas Dock Bar */}
+        {canvasArtifact && isCanvasMinimized && (
+          <div className="fixed bottom-5 right-6 z-40 flex items-center gap-2.5 px-3.5 py-2 bg-[var(--bg-surface)]/95 border border-[var(--border-subtle)] hover:border-[var(--accent)] rounded-xl shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3 transition-all duration-200">
+            <span className="flex items-center justify-center w-6 h-6 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shrink-0">
+              <FileText size={14} />
+            </span>
+            <div className="flex flex-col min-w-0 pr-1">
+              <span className="text-[11px] font-bold text-[var(--text-primary)] max-w-[140px] sm:max-w-[200px] truncate">
+                {canvasArtifact.title}
+              </span>
+              <span className="text-[9px] text-[var(--text-muted)]">Canvas minimized</span>
+            </div>
+            <div className="flex items-center gap-1 border-l border-[var(--border-subtle)] pl-2">
+              <button
+                type="button"
+                onClick={() => setIsCanvasMinimized(false)}
+                className="px-2 py-1 rounded-md text-[11px] font-bold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                title="Restore Canvas"
+              >
+                <Maximize2 size={11} />
+                <span>Open</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCanvasArtifact(null);
+                  setIsCanvasMinimized(false);
+                  setIsCanvasMaximized(false);
+                }}
+                className="p-1 rounded-md text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                title="Close Canvas"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Global Templates Modal from Chat Toolbar */}
@@ -478,6 +535,7 @@ export function ChatPage() {
               content: tpl.content,
               type: 'document'
             });
+            setIsCanvasMinimized(false);
           } else {
             handleSendMessage(`Please help me fill out and customize this template for our requirements:\n\n### ${tpl.title}\n${tpl.content}`);
           }

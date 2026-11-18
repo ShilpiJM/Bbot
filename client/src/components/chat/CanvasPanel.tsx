@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { 
-  X, Maximize2, Minimize2, Edit3, Eye, Copy, Check, 
+  X, Maximize2, Minimize2, Minus, Edit3, Eye, Copy, Check, 
   FileText, FileSpreadsheet, Mail, Sparkles, Loader2, Send,
   ChevronLeft, ChevronRight, Bookmark, BookmarkPlus,
   History, GitCompare, Shield, ChevronDown, CheckSquare, Square, Wand2, RotateCcw
@@ -34,6 +34,9 @@ interface CanvasPanelProps {
   onClose: () => void;
   onSendMessage?: (text: string) => void;
   onUpdateContent?: (newContent: string) => void;
+  isMaximized?: boolean;
+  onToggleMaximize?: () => void;
+  onMinimize?: () => void;
 }
 
 const sanitizeHtmlSchema: any = {
@@ -68,11 +71,16 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
   onClose,
   onSendMessage,
   onUpdateContent,
+  isMaximized: isMaximizedProp,
+  onToggleMaximize: onToggleMaximizeProp,
+  onMinimize,
 }) => {
   const [content, setContent] = useState(artifact?.content || '');
   const [title, setTitle] = useState(artifact?.title || 'Interactive Canvas');
   const [isEditing, setIsEditing] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMaximizedInternal, setIsMaximizedInternal] = useState(false);
+  const isMax = isMaximizedProp !== undefined ? isMaximizedProp : isMaximizedInternal;
+  const toggleMaximize = onToggleMaximizeProp || (() => setIsMaximizedInternal(!isMaximizedInternal));
   const [copied, setCopied] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isExporting, setIsExporting] = useState<'pdf' | 'excel' | 'docx' | null>(null);
@@ -235,33 +243,34 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
   return (
     <div className={clsx(
       "flex flex-col h-full bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] shadow-2xl transition-all duration-300 z-30",
-      isMaximized ? "fixed inset-0 z-50 w-full" : "w-full"
+      isMax ? "fixed inset-0 z-50 w-full" : "w-full"
     )}>
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/90 backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/95 backdrop-blur-md shrink-0 select-none">
+        {/* Left: Document Identity & Stats */}
+        <div className="flex items-center gap-2 shrink-0 max-w-[130px] xs:max-w-[170px] sm:max-w-[220px] md:max-w-[260px] min-w-0">
           <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shrink-0">
             <FileText size={16} />
           </span>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
-              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[140px] sm:max-w-[220px]">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate" title={title}>
                 {title}
               </h3>
               {watermark !== 'NONE' && (
-                <span className="hidden sm:inline-flex text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/25 shrink-0">
+                <span className="hidden xl:inline-flex text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/25 shrink-0">
                   {watermark}
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-[var(--text-muted)] font-mono">
-              {stats.words} words • {stats.readMinutes} min read {stats.hasTable ? '• Contains Table' : ''}
+            <span className="text-[10px] text-[var(--text-muted)] font-mono whitespace-nowrap truncate">
+              {stats.words} words • {stats.readMinutes} min read
             </span>
           </div>
         </div>
 
-        {/* View Controls & Action Toolbar */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        {/* View Controls & Action Toolbar (Horizontally scrollable without visible scrollbar so it never pushes controls) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5 min-w-0 flex-1 justify-end [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {/* Version History Dropdown Button */}
           <div className="relative">
             <button
@@ -536,23 +545,40 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
             <Mail size={12} />
             <span className="hidden sm:inline">Email</span>
           </button>
+        </div>
 
-          {/* Maximize / Close */}
+        {/* Pinned Window Controls (Minimize, Maximize/Restore, Close X) - Always visible & never pushed off-screen */}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 pl-1.5 sm:pl-2 ml-1 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          {/* Minimize Button */}
+          {onMinimize && (
+            <button
+              type="button"
+              onClick={onMinimize}
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer"
+              title="Minimize Canvas to dock"
+            >
+              <Minus size={14} />
+            </button>
+          )}
+
+          {/* Maximize / Restore Button */}
           <button
             type="button"
-            onClick={() => setIsMaximized(!isMaximized)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer ml-0.5"
-            title={isMaximized ? "Exit fullscreen" : "Fullscreen"}
+            onClick={toggleMaximize}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer"
+            title={isMax ? "Restore Split View" : "Maximize Canvas (Fullscreen)"}
           >
-            {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            {isMax ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
+
+          {/* Close Button (X) */}
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/15 active:scale-95 transition-all cursor-pointer group"
             title="Close Canvas"
           >
-            <X size={15} />
+            <X size={15} className="group-hover:scale-110 transition-transform stroke-[2.2]" />
           </button>
         </div>
       </div>
