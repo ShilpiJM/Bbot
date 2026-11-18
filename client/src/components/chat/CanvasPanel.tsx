@@ -263,44 +263,72 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
       {/* Top Header Bar */}
       <div className="flex items-center justify-between gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/95 backdrop-blur-md shrink-0 select-none">
         {/* Left: Document Identity & Stats */}
-        <div className="flex items-center gap-2 shrink-0 max-w-[130px] xs:max-w-[170px] sm:max-w-[220px] md:max-w-[260px] min-w-0">
+        <div className="flex items-center gap-2 shrink-0 max-w-[130px] sm:max-w-[170px] md:max-w-[210px] overflow-hidden min-w-0">
           <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shrink-0">
             <FileText size={16} />
           </span>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate" title={title}>
+          <div className="flex flex-col min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate block w-full" title={title}>
                 {title}
               </h3>
-              {effectiveWatermark && (
-                <span className="hidden xl:inline-flex text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/25 shrink-0 truncate max-w-[120px]" title={`Watermark: ${effectiveWatermark}`}>
-                  {effectiveWatermark}
-                </span>
-              )}
-              {watermarkImage && (
-                <span className="hidden xl:inline-flex text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25 shrink-0" title={`Image Watermark: ${watermarkImageName}`}>
-                  Logo
-                </span>
-              )}
             </div>
-            <span className="text-[10px] text-[var(--text-muted)] font-mono whitespace-nowrap truncate">
+            <span className="text-[10px] text-[var(--text-muted)] font-mono whitespace-nowrap truncate block">
               {stats.words} words • {stats.readMinutes} min read
             </span>
           </div>
         </div>
 
-        {/* View Controls & Action Toolbar (Horizontally scrollable without visible scrollbar so it never pushes controls) */}
+        {/* View Controls & Action Toolbar */}
         <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5 min-w-0 flex-1 justify-end [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {/* Edit / Preview Toggle (Primary Control - First so it is always accessible) */}
+          <div className="flex items-center p-0.5 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditing(false);
+                setIsDiffMode(false);
+              }}
+              className={clsx(
+                "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer",
+                !isEditing && !isDiffMode
+                  ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs" 
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              )}
+              title="Preview rendered document"
+            >
+              <Eye size={12} />
+              <span className="hidden sm:inline">Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditing(true);
+                setIsDiffMode(false);
+              }}
+              className={clsx(
+                "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer",
+                isEditing 
+                  ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs" 
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              )}
+              title="Edit markdown text"
+            >
+              <Edit3 size={12} />
+              <span className="hidden sm:inline">Edit</span>
+            </button>
+          </div>
+
           {/* Version History Dropdown Button */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setShowHistoryMenu(!showHistoryMenu)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer"
+              className="flex items-center gap-1 px-1.5 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer"
               title="View document revision history"
             >
               <History size={12} className="text-[var(--accent)]" />
-              <span className="hidden sm:inline">v{versions.length}</span>
+              <span>v{versions.length}</span>
               <ChevronDown size={10} className="opacity-70" />
             </button>
 
@@ -354,7 +382,7 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
               type="button"
               onClick={() => setIsDiffMode(!isDiffMode)}
               className={clsx(
-                "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer",
+                "flex items-center gap-1 px-1.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer shrink-0",
                 isDiffMode
                   ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40 shadow-xs"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border-[var(--border-subtle)]"
@@ -366,79 +394,40 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
             </button>
           )}
 
-          {/* Templates Library Launcher */}
+          {/* Copy Button */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer shrink-0"
+            title="Copy content"
+          >
+            {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+          </button>
+
+          {/* Templates Launcher (Compact Icon) */}
           <button
             type="button"
             onClick={() => {
               setTemplateSavePayload(null);
               setIsTemplatesModalOpen(true);
             }}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer shrink-0"
             title="Browse standard corporate email & document templates"
           >
-            <Bookmark size={12} className="text-amber-500" />
-            <span className="hidden sm:inline">Templates</span>
+            <Bookmark size={13} className="text-amber-500" />
           </button>
 
-          {/* Save as Custom Template */}
+          {/* Save as Custom Template (Compact Icon) */}
           <button
             type="button"
             onClick={() => {
               setTemplateSavePayload({ title, content });
               setIsTemplatesModalOpen(true);
             }}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 border border-transparent hover:border-amber-300 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 border border-transparent hover:border-amber-300 transition-all cursor-pointer shrink-0"
             title="Save this document as a reusable template"
           >
-            <BookmarkPlus size={14} />
-          </button>
-
-          {/* Edit / Preview Toggle */}
-          <div className="flex items-center p-0.5 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditing(false);
-                setIsDiffMode(false);
-              }}
-              className={clsx(
-                "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer",
-                !isEditing && !isDiffMode
-                  ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs" 
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              )}
-              title="Preview rendered document"
-            >
-              <Eye size={12} />
-              <span className="hidden sm:inline">Preview</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditing(true);
-                setIsDiffMode(false);
-              }}
-              className={clsx(
-                "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer",
-                isEditing 
-                  ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs" 
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              )}
-              title="Edit markdown text"
-            >
-              <Edit3 size={12} />
-              <span className="hidden sm:inline">Edit</span>
-            </button>
-          </div>
-
-          {/* Copy Button */}
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer"
-            title="Copy content"
-          >
-            {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+            <BookmarkPlus size={13} />
           </button>
 
           {/* Branding & Watermark Settings Dropdown */}
