@@ -617,6 +617,8 @@ class GeneratePdfRequest(BaseModel):
     content: str
     title: Optional[str] = "Report Document"
     filename_hint: Optional[str] = "report"
+    watermark: Optional[str] = None
+    include_signoff: Optional[bool] = False
 
 @router.post("/export/generate-pdf")
 def generate_pdf_endpoint(req: GeneratePdfRequest, current_user: dict = Depends(get_current_user)):
@@ -627,7 +629,9 @@ def generate_pdf_endpoint(req: GeneratePdfRequest, current_user: dict = Depends(
             content=req.content,
             title=req.title or "Report Document",
             filename_hint=req.filename_hint or "report",
-            author=current_user.get("username", "TRPW bbot")
+            author=current_user.get("username", "TRPW bbot"),
+            watermark=req.watermark,
+            include_signoff=bool(req.include_signoff)
         )
         return res
     except Exception as e:
@@ -656,6 +660,8 @@ class ExportDocumentRequest(BaseModel):
     content: str
     title: Optional[str] = "Data Export"
     filename_hint: Optional[str] = "bbot_export"
+    watermark: Optional[str] = None
+    include_signoff: Optional[bool] = False
 
 
 @router.post("/export/generate-excel")
@@ -698,7 +704,9 @@ def generate_docx_endpoint(req: ExportDocumentRequest, current_user: dict = Depe
         res = docx_service.generate_docx(
             content=req.content,
             title=req.title or "Intelligence Report",
-            filename_hint=req.filename_hint or "bbot_document"
+            filename_hint=req.filename_hint or "bbot_document",
+            watermark=req.watermark,
+            include_signoff=bool(req.include_signoff)
         )
         return res
     except Exception as e:

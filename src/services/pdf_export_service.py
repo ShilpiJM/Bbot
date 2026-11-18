@@ -30,8 +30,12 @@ PDF_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 class NumberedCanvas(canvas.Canvas):
     """
-    Two-pass canvas to dynamically calculate and print exact 'Page X of Y' on all pages.
+    Two-pass canvas to dynamically calculate and print exact 'Page X of Y' on all pages,
+    along with corporate headers, footers, and optional diagonal watermark.
     """
+    watermark: Optional[str] = None
+    doc_author: str = "TRPW bbot"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -50,22 +54,48 @@ class NumberedCanvas(canvas.Canvas):
 
     def draw_page_decorations(self, page_count: int):
         self.saveState()
+
+        # 1. Diagonal Watermark across the center
+        watermark_text = getattr(self, "watermark", None)
+        if watermark_text:
+            self.saveState()
+            self.setFont("Helvetica-Bold", 50)
+            self.setFillColor(colors.HexColor("#94A3B8"), alpha=0.14)
+            self.translate(letter[0] / 2.0, letter[1] / 2.0)
+            self.rotate(42)
+            self.drawCentredString(0, 0, str(watermark_text).upper())
+            self.restoreState()
+
+        # 2. Corporate Header (Top left: TRPW STRATEGIC PARTNERS, Top right: Classification / bbot doc)
+        self.setFont("Helvetica-Bold", 8)
+        self.setFillColor(colors.HexColor("#0F172A"))
+        self.drawString(40, letter[1] - 25, "TRPW STRATEGIC PARTNERS")
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#64748B"))
-        
-        # Header (Top right)
-        self.drawRightString(letter[0] - 40, letter[1] - 25, "TRPW bbot • Intelligence Document")
+        classification_label = f"[{watermark_text.upper()}] • " if watermark_text else ""
+        self.drawRightString(letter[0] - 40, letter[1] - 25, f"{classification_label}bbot Intelligence Document")
         self.setStrokeColor(colors.HexColor("#E2E8F0"))
-        self.setLineWidth(0.5)
+        self.setLineWidth(0.6)
         self.line(40, letter[1] - 28, letter[0] - 40, letter[1] - 28)
 
-        # Footer (Bottom left: generated timestamp, Bottom right: Page X of Y)
+        # 3. Corporate Footer (Bottom left: timestamp & author, Bottom right: Page X of Y)
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.drawString(40, 25, f"Generated on {now_str} • Confidential & Proprietary")
+        author_name = getattr(self, "doc_author", "TRPW bbot")
+        self.drawString(40, 24, f"Generated {now_str} • Author: {author_name} • Confidential & Proprietary")
         page_str = f"Page {self._pageNumber} of {page_count}"
-        self.drawRightString(letter[0] - 40, 25, page_str)
-        self.line(40, 35, letter[0] - 40, 35)
+        self.drawRightString(letter[0] - 40, 24, page_str)
+        self.setStrokeColor(colors.HexColor("#E2E8F0"))
+        self.setLineWidth(0.6)
+        self.line(40, 34, letter[0] - 40, 34)
         self.restoreState()
+
+
+def get_numbered_canvas_class(watermark: Optional[str] = None, author: str = "TRPW bbot"):
+    class DynamicNumberedCanvas(NumberedCanvas):
+        pass
+    DynamicNumberedCanvas.watermark = watermark
+    DynamicNumberedCanvas.doc_author = author
+    return DynamicNumberedCanvas
 
 
 class PDFExportService:
@@ -103,11 +133,14 @@ class PDFExportService:
         content: str,
         title: str = "Report Document",
         filename_hint: str = "report",
-        author: str = "TRPW bbot"
+        author: str = "TRPW bbot",
+        watermark: Optional[str] = None,
+        include_signoff: bool = False
     ) -> Dict[str, Any]:
         """
         Builds a high-resolution, presentation-grade PDF from Markdown content.
-        Returns dict with file_id, filename, file_path, and download_url.
+        Supports corporate branding, dynamic watermark (Confidential, Draft, Approved),
+        and executive sign-off governance block.
         """
         file_id = f"pdf_{uuid.uuid4().hex[:12]}"
         safe_hint = re.sub(r"[^a-zA-Z0-9_\-]", "_", filename_hint).strip("_") or "document"
@@ -311,6 +344,38 @@ class PDFExportService:
         if in_table:
             flush_table()
 
+        # Governance & Sign-off Block
+        if include_signoff:
+            story.append(Spacer(1, 16))
+            signoff_data = [
+                ["Role / Governance Stage", "Stakeholder / Owner", "Status / Verification", "Date"],
+                ["Prepared By (Author)", author, "Generated via bbot AI", today_full],
+                ["Reviewed By", "Department Head / Partner", "Pending Sign-off", "—"],
+                ["Governance / Compliance", "Legal & Quality Assurance", "Compliant", today_full],
+            ]
+            signoff_table = Table(
+                signoff_data,
+                colWidths=[130, 160, 140, 102],
+                style=TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ])
+            )
+            story.append(KeepTogether([
+                Paragraph("<b>Document Governance & Executive Sign-off</b>", h2_style),
+                Spacer(1, 4),
+                signoff_table
+            ]))
+
+        # Dynamic canvas maker with branding & watermark
+        canvas_class = get_numbered_canvas_class(watermark=watermark, author=author)
+
         # Build document with guaranteed fallback
         doc = SimpleDocTemplate(
             str(file_path),
@@ -321,7 +386,7 @@ class PDFExportService:
             bottomMargin=42,
         )
         try:
-            doc.build(story, canvasmaker=NumberedCanvas)
+            doc.build(story, canvasmaker=canvas_class)
         except Exception as build_err:
             logger.warning(f"ReportLab rich build failed: {build_err}. Falling back to plain text PDF.")
             fallback_story = [
@@ -334,7 +399,7 @@ class PDFExportService:
                     clean_para = html.escape(re.sub(r"<[^>]+>", "", para.strip()))
                     fallback_story.append(Paragraph(clean_para.replace("\n", "<br/>"), body_style))
                     fallback_story.append(Spacer(1, 6))
-            doc.build(fallback_story, canvasmaker=NumberedCanvas)
+            doc.build(fallback_story, canvasmaker=canvas_class)
 
         logger.info(f"Generated PDF file '{filename}' at {file_path} (size: {file_path.stat().st_size} bytes)")
 

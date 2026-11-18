@@ -38,18 +38,54 @@ class DocxExportService:
             tcMar.append(node)
         tcPr.append(tcMar)
 
-    def generate_docx(self, content: str, title: str = "Intelligence Report", filename_hint: str = "bbot_document") -> Dict[str, Any]:
+    def generate_docx(
+        self,
+        content: str,
+        title: str = "Intelligence Report",
+        filename_hint: str = "bbot_document",
+        watermark: str | None = None,
+        include_signoff: bool = False
+    ) -> Dict[str, Any]:
         """
         Builds an executive Word document (.docx) from markdown text, headings, lists, and tables.
+        Supports corporate branding headers, classification watermarks, and governance sign-off.
         """
         doc = Document()
 
-        # Set page margins (1 inch)
+        # Set page margins & corporate headers/footers
         for section in doc.sections:
             section.top_margin = Inches(0.8)
             section.bottom_margin = Inches(0.8)
             section.left_margin = Inches(0.8)
             section.right_margin = Inches(0.8)
+
+            # Corporate Header
+            hp = section.header.paragraphs[0]
+            hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            hrun = hp.add_run("TRPW STRATEGIC PARTNERS  •  bbot Intelligence")
+            hrun.font.name = "Segoe UI"
+            hrun.font.size = Pt(8)
+            hrun.font.color.rgb = RGBColor(0x94, 0xA3, 0xB8)
+
+            # Corporate Footer
+            fp = section.footer.paragraphs[0]
+            fp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            classification_prefix = f"[{watermark.upper()}]  •  " if watermark else ""
+            frun = fp.add_run(f"{classification_prefix}Confidential & Proprietary  •  Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+            frun.font.name = "Segoe UI"
+            frun.font.size = Pt(8)
+            frun.font.color.rgb = RGBColor(0x94, 0xA3, 0xB8)
+
+        # Classification Banner if watermark provided
+        if watermark:
+            banner_p = doc.add_paragraph()
+            banner_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            badge_run = banner_p.add_run(f"✦  DOCUMENT CLASSIFICATION: {watermark.upper()}  ✦")
+            badge_run.font.name = "Segoe UI"
+            badge_run.font.size = Pt(9.5)
+            badge_run.font.bold = True
+            badge_run.font.color.rgb = RGBColor(0xDC, 0x26, 0x26) if "CONFIDENTIAL" in watermark.upper() else RGBColor(0xD9, 0x77, 0x06)
+            banner_p.paragraph_format.space_after = Pt(4)
 
         # Title
         title_p = doc.add_paragraph()
@@ -193,6 +229,45 @@ class DocxExportService:
 
         if in_table:
             flush_table()
+
+        # Governance & Sign-off Block
+        if include_signoff:
+            doc.add_paragraph().paragraph_format.space_before = Pt(16)
+            h_sign = doc.add_paragraph()
+            h_sign_run = h_sign.add_run("Document Governance & Executive Sign-off")
+            h_sign_run.font.name = "Segoe UI"
+            h_sign_run.font.size = Pt(13)
+            h_sign_run.font.bold = True
+            h_sign_run.font.color.rgb = RGBColor(0x0F, 0x17, 0x2A)
+
+            sign_table = doc.add_table(rows=4, cols=4)
+            sign_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            headers = ["Role / Governance Stage", "Stakeholder / Owner", "Status / Verification", "Date"]
+            for i, h in enumerate(headers):
+                cell = sign_table.rows[0].cells[i]
+                cell.text = h
+                self._set_cell_background(cell, "0F172A")
+                for r in cell.paragraphs[0].runs:
+                    r.font.name = "Segoe UI"
+                    r.font.bold = True
+                    r.font.size = Pt(8.5)
+                    r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+
+            rows_data = [
+                ["Prepared By (Author)", "bbot AI Intelligence", "Verified Draft", datetime.now().strftime("%Y-%m-%d")],
+                ["Reviewed By", "Department Head / Partner", "Pending Sign-off", "—"],
+                ["Governance / Compliance", "Legal & Quality Assurance", "Compliant", datetime.now().strftime("%Y-%m-%d")],
+            ]
+            for r_idx, row in enumerate(rows_data):
+                for c_idx, val in enumerate(row):
+                    cell = sign_table.rows[r_idx + 1].cells[c_idx]
+                    cell.text = val
+                    if r_idx % 2 == 0:
+                        self._set_cell_background(cell, "F8FAFC")
+                    for r in cell.paragraphs[0].runs:
+                        r.font.name = "Segoe UI"
+                        r.font.size = Pt(8.5)
+                        r.font.color.rgb = RGBColor(0x1E, 0x29, 0x3B)
 
         # Save docx
         file_id = str(uuid.uuid4())
