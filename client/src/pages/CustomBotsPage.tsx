@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Check, ChevronDown, Code, Copy, FileText, FolderPlus, Globe2, Layers, MessageSquare, Pencil, Plus, RefreshCw, Sparkles, Tag, Trash2, Upload, X } from 'lucide-react';
+import { 
+  Bot, Check, ChevronDown, Code, Copy, ExternalLink, FileText, FolderPlus, Globe2, 
+  Layers, MessageSquare, Pencil, Plus, RefreshCw, Sparkles, Tag, Trash2, Upload, X, 
+  Shield, BookOpen 
+} from 'lucide-react';
 import { useCustomBots, type CustomBot, type CustomBotDocument } from '../hooks/useCustomBots';
 import { ChatArea } from '../components/chat/ChatArea';
 import { ChatInput } from '../components/chat/ChatInput';
@@ -516,58 +520,567 @@ function IntegrationPanel({ bot, onClose, notify }: { bot: CustomBot; onClose: (
   const { getIntegration, createIntegration, saveIntegration, rotateIntegration, deleteIntegration } = useCustomBots();
   const [integration, setIntegration] = useState<Awaited<ReturnType<typeof getIntegration>> | null>(null);
   const [origins, setOrigins] = useState('');
-  const [enabled, setEnabled] = useState(false);
+  const [allowAllOrigins, setAllowAllOrigins] = useState(true);
+  const [enabled, setEnabled] = useState(true);
   const [secret, setSecret] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'script' | 'guide' | 'settings'>('script');
 
   useEffect(() => {
-    getIntegration(bot.id).then((data) => {
-      setIntegration(data);
-      setEnabled(data.enabled ?? false);
-      setOrigins((data.allowed_origins ?? []).join('\n'));
-    }).catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Could not load integration settings')).finally(() => setLoading(false));
+    getIntegration(bot.id)
+      .then((data) => {
+        setIntegration(data);
+        setEnabled(data.enabled ?? false);
+        const originList = data.allowed_origins ?? [];
+        if (originList.includes('*') || originList.length === 0) {
+          setAllowAllOrigins(true);
+          setOrigins('*');
+        } else {
+          setAllowAllOrigins(false);
+          setOrigins(originList.join('\n'));
+        }
+      })
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Could not load integration settings'))
+      .finally(() => setLoading(false));
   }, [bot.id]);
 
-  const originList = () => origins.split('\n').map((origin) => origin.trim()).filter(Boolean);
-  const save = async () => {
-    setSaving(true); setError('');
-    try {
-      const input = { enabled, allowed_origins: originList() };
-      const data = integration?.configured ? await saveIntegration(bot.id, input) : await createIntegration(bot.id, input);
-      setIntegration(data); setSecret(data.secret ?? '');
-      notify('Integration settings saved');
-    } catch (saveError) { setError(saveError instanceof Error ? saveError.message : 'Could not save integration'); }
-    finally { setSaving(false); }
+  const originList = () => {
+    if (allowAllOrigins) return ['*'];
+    return origins.split('\n').map((o) => o.trim()).filter(Boolean);
   };
-  const rotate = async () => {
-    setSaving(true); setError('');
-    try { const data = await rotateIntegration(bot.id); setSecret(data.secret ?? ''); notify('Secret rotated. Copy it now.'); }
-    catch (rotateError) { setError(rotateError instanceof Error ? rotateError.message : 'Could not rotate secret'); }
-    finally { setSaving(false); }
-  };
-  const detach = async () => {
-    if (!window.confirm(`Detach ${bot.name} from external access?`)) return;
-    await deleteIntegration(bot.id); setIntegration({ configured: false }); setEnabled(false); setSecret(''); notify('External integration detached');
-  };
-  const copy = async (value: string, message: string) => { await navigator.clipboard.writeText(value); notify(message); };
-  const apiBaseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
-  const embedCode = integration?.public_key ? `<script src="${apiBaseUrl}/widget.js" data-bot-key="${integration.public_key}" data-api-base="${apiBaseUrl}" defer></script>` : '';
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-    <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-      <div className="mb-5 flex items-start justify-between"><div className="flex items-center gap-3"><div className="rounded-[var(--radius-md)] bg-[var(--bg-surface-hover)] p-2 text-[var(--accent)]"><Globe2 size={20} /></div><div><h2 className="text-xl font-bold text-[var(--text-primary)]">External Integration</h2><p className="text-sm text-[var(--text-secondary)]">Attach only {bot.name} to a future website.</p></div></div><button onClick={onClose} aria-label="Close" className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X size={18} /></button></div>
-      {error && <div className="mb-4 rounded-[var(--radius-md)] border border-[rgba(250,82,82,0.35)] bg-[rgba(250,82,82,0.1)] p-3 text-sm text-[var(--error)]">{error}</div>}
-      {loading ? <div className="h-32 animate-pulse rounded-[var(--radius-md)] bg-[var(--bg-surface-hover)]" /> : <>
-        <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3"><div><p className="text-sm font-medium text-[var(--text-primary)]">Allow external access</p><p className="text-xs text-[var(--text-secondary)]">Disabled until you turn it on.</p></div><button role="switch" aria-checked={enabled} onClick={() => setEnabled((value) => !value)} className={`relative h-6 w-11 rounded-full transition-colors ${enabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-surface-hover)]'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${enabled ? 'left-6' : 'left-1'}`} /></button></div>
-        <label className="mt-4 block text-sm font-medium text-[var(--text-primary)]">Allowed website origins <span className="text-[var(--error)]">*</span> <span className="font-normal text-[var(--text-muted)]">(one per line)</span><textarea required value={origins} onChange={(event) => setOrigins(event.target.value)} rows={3} placeholder="https://example.com" className="mt-2 w-full resize-y rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]" /><span className="mt-1 block text-xs font-normal text-[var(--text-muted)]">Add the exact website origin that will host this bot.</span></label>
-        {integration?.configured && <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3"><p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Public key</p><div className="mt-1 flex items-center gap-2"><code className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">{integration.public_key}</code><button title="Copy public key" onClick={() => copy(integration.public_key ?? '', 'Public key copied')} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><Copy size={15} /></button></div></div>}
-        {secret && <div className="mt-3 rounded-[var(--radius-md)] border border-[rgba(234,166,85,0.4)] bg-[rgba(234,166,85,0.08)] p-3"><p className="text-xs font-medium text-[var(--accent)]">Copy this secret now. It will not be shown again.</p><div className="mt-2 flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs text-[var(--text-primary)]">{secret}</code><button title="Copy secret" onClick={() => copy(secret, 'Secret copied')} className="p-1.5 text-[var(--accent)]"><Copy size={15} /></button></div></div>}
-        <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] pt-4"><button type="button" onClick={onClose} className="rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">Cancel</button>{integration?.configured && <><button type="button" disabled={saving} onClick={rotate} className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"><RefreshCw size={14} />Rotate secret</button><button type="button" disabled={saving} onClick={detach} className="rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--error)] hover:bg-[rgba(250,82,82,0.1)]">Detach</button></>}{integration?.configured && embedCode && <button type="button" onClick={() => copy(embedCode, 'Embed setup copied')} className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"><Copy size={14} />Copy embed setup</button>}<button type="button" disabled={saving || !originList().length} onClick={save} className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50">{saving ? 'Saving...' : integration?.configured ? 'Save settings' : 'Create integration'}</button></div>
-      </>}
+  const handleQuickEnable = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const data = await createIntegration(bot.id, { enabled: true, allowed_origins: ['*'] });
+      setIntegration(data);
+      setEnabled(true);
+      setAllowAllOrigins(true);
+      setOrigins('*');
+      if (data.secret) setSecret(data.secret);
+      notify(`Embed script generated for ${bot.name}!`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to generate embed script');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const input = { enabled, allowed_origins: originList().length ? originList() : ['*'] };
+      const data = integration?.configured ? await saveIntegration(bot.id, input) : await createIntegration(bot.id, input);
+      setIntegration(data);
+      if (data.secret) setSecret(data.secret);
+      notify('Embed settings saved successfully');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save integration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rotate = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const data = await rotateIntegration(bot.id);
+      setSecret(data.secret ?? '');
+      notify('Secret rotated. Copy it now.');
+    } catch (rotateError) {
+      setError(rotateError instanceof Error ? rotateError.message : 'Could not rotate secret');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const detach = async () => {
+    if (!window.confirm(`Detach ${bot.name} from external website access?`)) return;
+    await deleteIntegration(bot.id);
+    setIntegration({ configured: false });
+    setEnabled(false);
+    setSecret('');
+    notify('External website access detached');
+  };
+
+  const copy = async (value: string, key: string, message: string) => {
+    await navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+    notify(message);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const apiBaseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const embedCode = integration?.public_key
+    ? `<!-- TRPW bbot Embed Widget for ${bot.name} -->\n<script\n  src="${apiBaseUrl}/widget.js"\n  data-bot-key="${integration.public_key}"\n  data-api-base="${apiBaseUrl}"\n  defer>\n</script>`
+    : '';
+
+  const previewUrl = integration?.public_key ? `${apiBaseUrl}/embed-preview.html?key=${integration.public_key}` : '';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs select-none" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-2xl rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4 bg-[var(--bg-surface-hover)]/30">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent)]">
+              <Code size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                  Website Embed Script
+                </h2>
+                {integration?.configured && (
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    enabled 
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {enabled ? 'Active on Websites' : 'Access Disabled'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                Embed <strong>{bot.name}</strong> on any external website, CMS, or portal
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Navigation Tabs */}
+        {integration?.configured && (
+          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('script')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'script'
+                  ? 'border-[var(--accent)] text-[var(--accent)]'
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Code size={14} />
+              <span>Copy Script</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('guide')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'guide'
+                  ? 'border-[var(--accent)] text-[var(--accent)]'
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <BookOpen size={14} />
+              <span>Where to Paste</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'border-[var(--accent)] text-[var(--accent)]'
+                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Shield size={14} />
+              <span>Domain Security</span>
+            </button>
+          </div>
+        )}
+
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {error && (
+            <div className="rounded-xl border border-[rgba(250,82,82,0.35)] bg-[rgba(250,82,82,0.1)] p-3 text-xs text-[var(--error)]">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="space-y-3">
+              <div className="h-10 animate-pulse rounded-xl bg-[var(--bg-surface-hover)]" />
+              <div className="h-32 animate-pulse rounded-xl bg-[var(--bg-surface-hover)]" />
+            </div>
+          ) : !integration?.configured ? (
+            /* First Time / Unconfigured State: 1-Click Generate */
+            <div className="rounded-2xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-primary)] p-8 text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent)] shadow-sm">
+                <Globe2 size={28} />
+              </div>
+              <h3 className="text-base font-bold text-[var(--text-primary)]">
+                Embed {bot.name} on Your Website
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-xs text-[var(--text-secondary)] leading-relaxed">
+                Generate a single-line embed script tag that you can copy and paste into HTML, WordPress, Webflow, Shopify, Wix, or React.
+              </p>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 max-w-md mx-auto text-left">
+                <div className="flex items-center gap-2 rounded-lg bg-[var(--bg-surface)] p-2.5 border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                  <Check size={14} className="text-emerald-500 shrink-0" />
+                  <span>Floating chat bubble</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-[var(--bg-surface)] p-2.5 border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                  <Check size={14} className="text-emerald-500 shrink-0" />
+                  <span>RAG document memory</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-[var(--bg-surface)] p-2.5 border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                  <Check size={14} className="text-emerald-500 shrink-0" />
+                  <span>11 Indian languages</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-[var(--bg-surface)] p-2.5 border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                  <Check size={14} className="text-emerald-500 shrink-0" />
+                  <span>Zero dependencies</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleQuickEnable}
+                disabled={saving}
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-6 py-3 text-sm font-bold text-white hover:bg-[var(--accent-hover)] shadow-md transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Sparkles size={16} />
+                {saving ? 'Generating...' : 'Generate Embed Script Now'}
+              </button>
+            </div>
+          ) : activeTab === 'script' ? (
+            /* TAB 1: SCRIPT TAG & 1-CLICK COPY */
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">
+                    Website Embed Code Snippet
+                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)] font-mono">
+                    Zero external dependencies
+                  </span>
+                </div>
+
+                {/* Code Block Container */}
+                <div className="relative rounded-xl border border-white/10 bg-[#070b14] p-4 font-mono text-xs text-sky-300 shadow-inner overflow-hidden group">
+                  <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    {embedCode}
+                  </pre>
+                  <button
+                    type="button"
+                    onClick={() => copy(embedCode, 'script', 'Embed script copied to clipboard!')}
+                    className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer shadow-sm"
+                    title="Copy to clipboard"
+                  >
+                    {copiedKey === 'script' ? (
+                      <>
+                        <Check size={13} className="text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={13} />
+                        <span>Copy Code</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => copy(embedCode, 'script_main', 'Embed script copied to clipboard!')}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-xs font-bold text-white hover:bg-[var(--accent-hover)] shadow-md transition-all cursor-pointer active:scale-95"
+                >
+                  {copiedKey === 'script_main' ? <Check size={15} /> : <Copy size={15} />}
+                  <span>{copiedKey === 'script_main' ? 'Copied to Clipboard!' : 'Copy Script Tag'}</span>
+                </button>
+
+                {previewUrl && (
+                  <button
+                    type="button"
+                    onClick={() => window.open(previewUrl, '_blank')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-hover)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                    title="Open live sandbox to test the widget"
+                  >
+                    <ExternalLink size={14} className="text-[var(--accent)]" />
+                    <span>Test Widget Live ↗</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Features Included Box */}
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 space-y-2">
+                <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider block">
+                  What this script adds to your website:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0" />
+                    <span>Floating bottom-right circular launcher</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span>Instant RAG answers from {bot.document_count} docs</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                    <span>11 Indian languages + Speech-to-text</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                    <span>Starter question bubble recommendations</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === 'guide' ? (
+            /* TAB 2: WHERE TO PASTE INSTRUCTIONS */
+            <div className="space-y-4 text-xs">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
+                <h4 className="font-bold text-[var(--text-primary)] text-sm mb-1 flex items-center gap-2">
+                  <span>🌐</span> Plain HTML / PHP Website
+                </h4>
+                <p className="text-[var(--text-secondary)] mb-2">
+                  Open your <code className="text-[var(--accent)]">index.html</code> or footer template file and paste the script tag right before the closing <code className="text-sky-400">&lt;/body&gt;</code> tag:
+                </p>
+                <div className="bg-[#070b14] rounded-lg p-2.5 font-mono text-[11px] text-zinc-300">
+                  <div className="text-zinc-500">&lt;!-- Your page content --&gt;</div>
+                  <div className="text-amber-400 font-bold">&lt;script src="..." data-bot-key="..." defer&gt;&lt;/script&gt;</div>
+                  <div className="text-zinc-400">&lt;/body&gt;</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
+                <h4 className="font-bold text-[var(--text-primary)] text-sm mb-1 flex items-center gap-2">
+                  <span>📝</span> WordPress
+                </h4>
+                <p className="text-[var(--text-secondary)]">
+                  Go to <strong>Plugins → Add New</strong>, install the free <strong>WPCode (Insert Headers and Footers)</strong> plugin, open <strong>Header &amp; Footer</strong>, and paste the code snippet into the <strong>Footer</strong> box. Click Save.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
+                <h4 className="font-bold text-[var(--text-primary)] text-sm mb-1 flex items-center gap-2">
+                  <span>🎨</span> Webflow / Wix / Shopify / Squarespace
+                </h4>
+                <p className="text-[var(--text-secondary)]">
+                  Go to your <strong>Site Settings → Custom Code</strong>, scroll down to the <strong>Footer Code / Before &lt;/body&gt;</strong> section, paste the script tag, and publish your website.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
+                <h4 className="font-bold text-[var(--text-primary)] text-sm mb-1 flex items-center gap-2">
+                  <span>⚛️</span> React / Next.js
+                </h4>
+                <p className="text-[var(--text-secondary)]">
+                  Paste the snippet inside your <code className="text-[var(--accent)]">public/index.html</code> before <code className="text-sky-400">&lt;/body&gt;</code>, or in Next.js <code className="text-[var(--accent)]">_app.tsx</code> / <code className="text-[var(--accent)]">layout.tsx</code> using <code className="text-sky-400">&lt;Script src="..." /&gt;</code>.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* TAB 3: DOMAIN SECURITY & SETTINGS */
+            <div className="space-y-4">
+              {/* External Access Toggle */}
+              <div className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] p-3.5 bg-[var(--bg-primary)]">
+                <div>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    Allow External Website Access
+                  </p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    Toggle external chat responses on or off without removing your configuration
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  onClick={() => setEnabled(!enabled)}
+                  className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer ${
+                    enabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-surface-hover)]'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                      enabled ? 'left-6' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Origin Restriction Options */}
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 space-y-3">
+                <span className="text-xs font-bold text-[var(--text-primary)] block">
+                  Allowed Website Origins
+                </span>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs text-[var(--text-primary)]">
+                    <input
+                      type="radio"
+                      name="originType"
+                      checked={allowAllOrigins}
+                      onChange={() => {
+                        setAllowAllOrigins(true);
+                        setOrigins('*');
+                      }}
+                      className="accent-[var(--accent)]"
+                    />
+                    <div>
+                      <span className="font-semibold">Allow any website (*)</span>
+                      <span className="block text-[11px] text-[var(--text-muted)]">
+                        Recommended for easy embedding or testing across multiple domains
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[var(--text-primary)] pt-1">
+                    <input
+                      type="radio"
+                      name="originType"
+                      checked={!allowAllOrigins}
+                      onChange={() => {
+                        setAllowAllOrigins(false);
+                        if (origins === '*') setOrigins('');
+                      }}
+                      className="accent-[var(--accent)] mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <span className="font-semibold">Restrict to specific website domains</span>
+                      <span className="block text-[11px] text-[var(--text-muted)]">
+                        Only requests originating from these exact origins will be answered
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {!allowAllOrigins && (
+                  <div className="pt-2">
+                    <textarea
+                      value={origins}
+                      onChange={(e) => setOrigins(e.target.value)}
+                      rows={3}
+                      placeholder="https://mycompany.com&#10;https://portal.mycompany.com&#10;http://localhost:3000"
+                      className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                    />
+                    <span className="text-[10px] text-[var(--text-muted)] block mt-1">
+                      One origin per line (include scheme, e.g. https://).
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Public Key Display */}
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+                  Public Integration Key
+                </span>
+                <div className="mt-1 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--text-primary)]">
+                    {integration?.public_key}
+                  </code>
+                  <button
+                    type="button"
+                    title="Copy public key"
+                    onClick={() => copy(integration?.public_key ?? '', 'pubkey', 'Public key copied')}
+                    className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Secret Key Display */}
+              {secret && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 block">
+                    API Secret Key (Copy now - will not be shown again)
+                  </span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <code className="min-w-0 flex-1 break-all font-mono text-xs text-[var(--text-primary)]">
+                      {secret}
+                    </code>
+                    <button
+                      type="button"
+                      title="Copy secret"
+                      onClick={() => copy(secret, 'secret', 'Secret copied')}
+                      className="p-1.5 text-amber-500 hover:text-amber-400 cursor-pointer"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-hover)]/30 px-6 py-4">
+          <div className="flex items-center gap-2">
+            {integration?.configured && activeTab === 'settings' && (
+              <>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={rotate}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+                >
+                  <RefreshCw size={13} />
+                  <span>Rotate Secret</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={detach}
+                  className="rounded-lg px-2.5 py-1.5 text-xs text-[var(--error)] hover:bg-[rgba(250,82,82,0.1)] transition-colors cursor-pointer"
+                >
+                  Detach
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] cursor-pointer transition-colors"
+            >
+              Close
+            </button>
+            {integration?.configured && activeTab === 'settings' && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={save}
+                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--accent-hover)] cursor-pointer transition-all shadow-sm"
+              >
+                {saving ? 'Saving...' : 'Save Settings'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
-  </div>;
+  );
 }
 
 export function CustomBotsPage() {
@@ -579,7 +1092,7 @@ export function CustomBotsPage() {
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2200); };
   const handleToggle = (bot: CustomBot) => { toggleBot({ id: bot.id, active: !bot.is_active }); notify(`${bot.name} is now ${!bot.is_active ? 'active' : 'inactive'}`); };
   return <div className="space-y-8"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-2xl font-bold text-[var(--text-primary)]">Custom Bots</h2><p className="mt-1 text-[var(--text-secondary)]">Create focused assistants with their own role and knowledge.</p></div><button onClick={() => setModalBot(null)} className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] hover:shadow-[var(--energy-glow)]"><Plus size={17} />Create Bot</button></div>
-    {isLoading ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-56 animate-pulse rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]" />)}</div> : error ? <div className="rounded-[var(--radius-lg)] border border-[rgba(250,82,82,0.35)] bg-[rgba(250,82,82,0.1)] p-5 text-sm text-[var(--error)]">{error instanceof Error ? error.message : 'Could not load custom bots.'}</div> : bots.length === 0 ? <div className="flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-20 text-center"><Bot size={48} className="mb-4 text-[var(--accent)]" /><h3 className="text-lg font-semibold text-[var(--text-primary)]">No custom bots yet</h3><p className="mt-1 max-w-sm text-sm text-[var(--text-secondary)]">Create a focused assistant for a team, workflow, or document collection.</p><button onClick={() => setModalBot(null)} className="mt-5 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">Create your first bot</button></div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{bots.map((bot) => <div key={bot.id} className="flex flex-col rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-[1px] hover:shadow-[0_6px_16px_rgba(0,0,0,0.12)]"><div className="flex items-start gap-3"><BotAvatar bot={bot} /><div className="min-w-0 flex-1"><h3 className="truncate font-semibold text-[var(--text-primary)]">{bot.name}</h3><p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{bot.personality}</p></div><button role="switch" aria-checked={bot.is_active} aria-label={`Toggle ${bot.name}`} onClick={() => handleToggle(bot)} className={`relative h-6 w-11 rounded-full transition-colors ${bot.is_active ? 'bg-[var(--accent)]' : 'bg-[var(--bg-surface-hover)]'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${bot.is_active ? 'left-6' : 'left-1'}`} /></button></div><div className="mt-5 flex items-center justify-between"><span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-surface-hover)] px-2.5 py-1 text-xs text-[var(--text-secondary)]"><FileText size={13} />{bot.document_count} documents</span><span className={`text-xs font-medium ${bot.is_active ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>{bot.is_active ? 'Active' : 'Inactive'}</span></div>{bot.documents && bot.documents.length > 0 && <div className="mt-3 flex flex-col gap-1.5">{bot.documents.map((doc: any) => <div key={doc.id} className="flex items-center gap-2 rounded bg-[var(--bg-surface-hover)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)]"><FileText size={12} className="shrink-0 text-[var(--accent)]" /><span className="truncate">{doc.filename}</span></div>)}</div>}<div className="mt-auto pt-5"><div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"><button onClick={() => setChatBot(bot)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"><MessageSquare size={15} />Chat</button><button onClick={() => setIntegrationBot(bot)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"><Globe2 size={15} />Integration</button><button onClick={() => setModalBot(bot)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"><Pencil size={15} />Edit</button></div></div></div>)}</div>}
+    {isLoading ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-56 animate-pulse rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]" />)}</div> : error ? <div className="rounded-[var(--radius-lg)] border border-[rgba(250,82,82,0.35)] bg-[rgba(250,82,82,0.1)] p-5 text-sm text-[var(--error)]">{error instanceof Error ? error.message : 'Could not load custom bots.'}</div> : bots.length === 0 ? <div className="flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-20 text-center"><Bot size={48} className="mb-4 text-[var(--accent)]" /><h3 className="text-lg font-semibold text-[var(--text-primary)]">No custom bots yet</h3><p className="mt-1 max-w-sm text-sm text-[var(--text-secondary)]">Create a focused assistant for a team, workflow, or document collection.</p><button onClick={() => setModalBot(null)} className="mt-5 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">Create your first bot</button></div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{bots.map((bot) => <div key={bot.id} className="flex flex-col rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-[1px] hover:shadow-[0_6px_16px_rgba(0,0,0,0.12)]"><div className="flex items-start gap-3"><BotAvatar bot={bot} /><div className="min-w-0 flex-1"><h3 className="truncate font-semibold text-[var(--text-primary)]">{bot.name}</h3><p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{bot.personality}</p></div><button role="switch" aria-checked={bot.is_active} aria-label={`Toggle ${bot.name}`} onClick={() => handleToggle(bot)} className={`relative h-6 w-11 rounded-full transition-colors ${bot.is_active ? 'bg-[var(--accent)]' : 'bg-[var(--bg-surface-hover)]'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${bot.is_active ? 'left-6' : 'left-1'}`} /></button></div><div className="mt-5 flex items-center justify-between"><span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-surface-hover)] px-2.5 py-1 text-xs text-[var(--text-secondary)]"><FileText size={13} />{bot.document_count} documents</span><span className={`text-xs font-medium ${bot.is_active ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>{bot.is_active ? 'Active' : 'Inactive'}</span></div>{bot.documents && bot.documents.length > 0 && <div className="mt-3 flex flex-col gap-1.5">{bot.documents.map((doc: any) => <div key={doc.id} className="flex items-center gap-2 rounded bg-[var(--bg-surface-hover)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)]"><FileText size={12} className="shrink-0 text-[var(--accent)]" /><span className="truncate">{doc.filename}</span></div>)}</div>}<div className="mt-auto pt-5"><div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"><button onClick={() => setChatBot(bot)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] cursor-pointer"><MessageSquare size={15} />Chat</button><button onClick={() => setIntegrationBot(bot)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all cursor-pointer"><Code size={15} />Embed Script</button><button onClick={() => setModalBot(bot)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"><Pencil size={15} />Edit</button></div></div></div>)}</div>}
     {modalBot !== undefined && <BotModal bot={modalBot} onClose={() => setModalBot(undefined)} onSaved={() => notify('Bot saved successfully')} />}
     {chatBot && <BotChatPanel bot={chatBot} onClose={() => setChatBot(null)} />}
     {integrationBot && <IntegrationPanel bot={integrationBot} onClose={() => setIntegrationBot(null)} notify={notify} />}
