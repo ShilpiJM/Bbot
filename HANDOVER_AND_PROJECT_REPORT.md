@@ -348,7 +348,40 @@ sudo certbot --nginx -d bbot.yourcompany.com
 
 ---
 
-## 7. Project Repositories & Access Credentials
+## 7. Strategic Computing Optimizations & Phase 2 Roadmap
+
+To further elevate the platform's cost efficiency, throughput, and business capability, the following high-priority technical initiatives are recommended for subsequent phases:
+
+### A. Computing & Architectural Optimizations (Cost & Latency)
+1. **Semantic Response Caching (Redis / SQLite Cache)**:
+   - *Design*: Cache LLM responses keyed on semantic embedding similarity (cosine threshold > 0.95).
+   - *Impact*: Reduces LLM API token consumption by **40% to 70%** on recurring enterprise queries with near-instant (< 100ms) response times.
+2. **Hybrid Search & Neural Reranking**:
+   - *Design*: Combine dense vector retrieval (ChromaDB) with sparse keyword retrieval (BM25), followed by a lightweight local cross-encoder (`bge-reranker-small`).
+   - *Impact*: Maximizes precision for dense regulatory, legal, and numerical document queries.
+3. **Rolling Context Compaction**:
+   - *Design*: Implement background rolling summarization for extended chat sessions (e.g. 15+ turns) to prevent context token blowout while maintaining conversational memory.
+4. **Backend Concurrency & Process Pooling**:
+   - *Design*: Transition Uvicorn to a Gunicorn process pool (`gunicorn -w 2 -k uvicorn.workers.UvicornWorker`) with an asynchronous connection pool for SQLite and ChromaDB.
+   - *Impact*: Enhances multi-user concurrent throughput and isolates memory allocations.
+5. **Air-Gapped Local Inference (vLLM / AWQ Quantization)**:
+   - *Design*: If TRPW mandates 100% on-premise privacy without third-party APIs, deploy 4-bit AWQ quantized open-weights models (e.g. Qwen 2.5 14B / Llama 3.1 8B) on an AWS `g4dn.xlarge` instance using vLLM PagedAttention.
+
+### B. Enterprise Feature Expansion
+1. **Cloud Storage Continuous Sync (SharePoint / OneDrive / Google Drive)**:
+   - Automated ingestion pipeline syncing corporate repository folders without requiring manual user file uploads.
+2. **Side-by-Side Contract Redlining & Diff Analysis**:
+   - Multi-document comparison engine that visualizes liability and financial discrepancies in an interactive Canvas redline table.
+3. **Interactive Visual Analytics (Plotly / Recharts in Canvas)**:
+   - Render interactive bar charts, burn-downs, and financial projections directly from tabular CSV/Excel data within Canvas and export to PDF/DOCX.
+4. **Role-Based Access Control & Compartmentalization (RBAC)**:
+   - Partition vector database embeddings by departmental access groups (e.g., HR, Finance, Executive, General) to ensure zero data leakage across organizational tiers.
+5. **Scheduled Executive Briefing Automations**:
+   - Scheduled cron jobs that synthesize weekly status updates every Monday morning and dispatch executive PDF summaries directly via email to leadership.
+
+---
+
+## 8. Project Repositories & Access Credentials
 
 - **Production Git Repository**: [https://github.com/itinfraanalyst-spec/Bbot.git](https://github.com/itinfraanalyst-spec/Bbot.git)
   - Target Branch: `main`
@@ -361,7 +394,7 @@ sudo certbot --nginx -d bbot.yourcompany.com
 
 ---
 
-## 8. Sign-off & Acknowledgement
+## 9. Sign-off & Acknowledgement
 
 This concludes the formal technical handover documentation for **bbot**. The application is verified in a stable production state, all tests and builds pass cleanly (`code 0`), and the infrastructure architecture is fully mapped for seamless deployment to AWS.
 
