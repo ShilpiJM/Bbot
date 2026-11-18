@@ -7,13 +7,13 @@ import {
   X, Maximize2, Minimize2, Minus, Edit3, Eye, Copy, Check, 
   FileText, FileSpreadsheet, Mail, Sparkles, Loader2, Send,
   ChevronLeft, ChevronRight, Bookmark, BookmarkPlus,
-  History, GitCompare, Shield, ChevronDown, CheckSquare, Square, Wand2, RotateCcw,
-  Upload, Image as ImageIcon, Type, Trash2
+  History, GitCompare, Shield, ChevronDown, Wand2, RotateCcw
 } from 'lucide-react';
 import clsx from 'clsx';
 import { TemplatesModal, type DocumentTemplate } from './TemplatesModal';
 import { EmailModal } from './EmailModal';
 import { TemplateAutoFillModal, extractPlaceholders } from './TemplateAutoFillModal';
+import { WatermarkModal } from './WatermarkModal';
 import { computeLineDiff } from '../../utils/diffHelper';
 
 export interface CanvasArtifact {
@@ -82,27 +82,12 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
   const [customWatermarkText, setCustomWatermarkText] = useState<string>('');
   const [watermarkImage, setWatermarkImage] = useState<string | null>(null);
   const [watermarkImageName, setWatermarkImageName] = useState<string>('');
-  const [watermarkTab, setWatermarkTab] = useState<'text' | 'image'>('text');
-  const watermarkFileInputRef = useRef<HTMLInputElement>(null);
   const [includeSignoff, setIncludeSignoff] = useState(false);
   const [showExportSettings, setShowExportSettings] = useState(false);
 
   const effectiveWatermark = useMemo(() => {
     return customWatermarkText.trim() ? customWatermarkText.trim().toUpperCase() : null;
   }, [customWatermarkText]);
-
-  const handleWatermarkImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setWatermarkImageName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setWatermarkImage(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   // --- Option 2: Version History & Diff Mode ---
   const [versions, setVersions] = useState<CanvasVersion[]>(() => [
@@ -263,7 +248,7 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
       {/* Top Header Bar */}
       <div className="flex items-center justify-between gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/95 backdrop-blur-md shrink-0 select-none">
         {/* Left: Document Identity & Stats */}
-        <div className="flex items-center gap-2 shrink-0 max-w-[130px] sm:max-w-[170px] md:max-w-[210px] overflow-hidden min-w-0">
+        <div className="flex items-center gap-2 shrink-0 min-w-[110px] max-w-[150px] sm:max-w-[190px] overflow-hidden select-none">
           <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shrink-0">
             <FileText size={16} />
           </span>
@@ -279,8 +264,11 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
           </div>
         </div>
 
-        {/* View Controls & Action Toolbar */}
-        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5 min-w-0 flex-1 justify-end [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {/* View Controls & Action Toolbar with sleek styled scrollbar */}
+        <div 
+          className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 min-w-0 flex-1 justify-start select-none [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[var(--border-subtle)] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[var(--text-muted)]"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border-subtle) transparent' }}
+        >
           {/* Edit / Preview Toggle (Primary Control - First so it is always accessible) */}
           <div className="flex items-center p-0.5 rounded-lg bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] shrink-0">
             <button
@@ -298,7 +286,7 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
               title="Preview rendered document"
             >
               <Eye size={12} />
-              <span className="hidden sm:inline">Preview</span>
+              <span>Preview</span>
             </button>
             <button
               type="button"
@@ -315,7 +303,7 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
               title="Edit markdown text"
             >
               <Edit3 size={12} />
-              <span className="hidden sm:inline">Edit</span>
+              <span>Edit</span>
             </button>
           </div>
 
@@ -334,7 +322,7 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
 
             {/* History Popover */}
             {showHistoryMenu && (
-              <div className="absolute right-0 top-full mt-1.5 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-2 z-50 animate-in fade-in">
+              <div className="absolute left-0 top-full mt-1.5 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-2 z-50 animate-in fade-in">
                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[var(--border-subtle)] px-1">
                   <span className="text-[11px] font-bold text-[var(--text-primary)] flex items-center gap-1">
                     <History size={12} /> Version History
@@ -390,9 +378,96 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
               title="Toggle side-by-side / inline diff against previous draft"
             >
               <GitCompare size={12} />
-              <span className="hidden sm:inline">Diff</span>
+              <span>Diff</span>
             </button>
           )}
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-[var(--border-subtle)] shrink-0 mx-0.5" />
+
+          {/* Watermark & Branding Button (Opens full WatermarkModal) */}
+          <button
+            type="button"
+            onClick={() => setShowExportSettings(true)}
+            className={clsx(
+              "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer shrink-0",
+              effectiveWatermark || watermarkImage || includeSignoff
+                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 shadow-xs"
+                : "bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+            )}
+            title="Configure custom watermark text or image logo"
+          >
+            <Shield size={12} className={effectiveWatermark || watermarkImage ? "text-amber-500" : ""} />
+            <span>
+              {effectiveWatermark ? (effectiveWatermark.length > 8 ? `${effectiveWatermark.slice(0, 6)}..` : effectiveWatermark) : watermarkImage ? "Logo" : "Watermark"}
+            </span>
+            <ChevronDown size={10} className="opacity-70" />
+          </button>
+
+          {/* Templates Launcher */}
+          <button
+            type="button"
+            onClick={() => {
+              setTemplateSavePayload(null);
+              setIsTemplatesModalOpen(true);
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer shrink-0"
+            title="Browse standard corporate email & document templates"
+          >
+            <Bookmark size={12} className="text-amber-500" />
+            <span>Templates</span>
+          </button>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-[var(--border-subtle)] shrink-0 mx-0.5" />
+
+          {/* Export Dropdown / Buttons */}
+          <button
+            type="button"
+            onClick={() => handleExport('pdf')}
+            disabled={isExporting !== null}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 dark:text-rose-300 dark:bg-rose-500/10 dark:border-rose-500/30 transition-all cursor-pointer shrink-0"
+            title="Export as professional PDF with custom watermark"
+          >
+            {isExporting === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+            <span>PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleExport('excel')}
+            disabled={isExporting !== null}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 transition-all cursor-pointer shrink-0"
+            title="Export structured tables as Excel (.xlsx)"
+          >
+            {isExporting === 'excel' ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
+            <span>Excel</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleExport('docx')}
+            disabled={isExporting !== null}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30 transition-all cursor-pointer shrink-0"
+            title="Export as Word document (.docx)"
+          >
+            {isExporting === 'docx' ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+            <span>Word</span>
+          </button>
+
+          {/* Smart Email Launcher Button */}
+          <button
+            type="button"
+            onClick={() => setIsEmailModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30 transition-all cursor-pointer shrink-0"
+            title="Draft & Send as Email via Gmail or Outlook"
+          >
+            <Mail size={12} />
+            <span>Email</span>
+          </button>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-[var(--border-subtle)] shrink-0 mx-0.5" />
 
           {/* Copy Button */}
           <button
@@ -402,19 +477,6 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
             title="Copy content"
           >
             {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
-          </button>
-
-          {/* Templates Launcher (Compact Icon) */}
-          <button
-            type="button"
-            onClick={() => {
-              setTemplateSavePayload(null);
-              setIsTemplatesModalOpen(true);
-            }}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all cursor-pointer shrink-0"
-            title="Browse standard corporate email & document templates"
-          >
-            <Bookmark size={13} className="text-amber-500" />
           </button>
 
           {/* Save as Custom Template (Compact Icon) */}
@@ -428,272 +490,6 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
             title="Save this document as a reusable template"
           >
             <BookmarkPlus size={13} />
-          </button>
-
-          {/* Branding & Watermark Settings Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowExportSettings(!showExportSettings)}
-              className={clsx(
-                "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer",
-                effectiveWatermark || watermarkImage || includeSignoff
-                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 shadow-xs"
-                  : "bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
-              )}
-              title="Configure custom watermark text, image logo, and governance sign-off"
-            >
-              <Shield size={12} className={effectiveWatermark || watermarkImage ? "text-amber-500" : ""} />
-              <span className="hidden sm:inline">
-                {effectiveWatermark ? (effectiveWatermark.length > 10 ? `${effectiveWatermark.slice(0, 8)}..` : effectiveWatermark) : watermarkImage ? "Logo" : "Watermark"}
-              </span>
-              <ChevronDown size={10} className="opacity-70" />
-            </button>
-
-            {/* Watermark & Governance Settings Menu */}
-            {showExportSettings && (
-              <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-3 z-50 animate-in fade-in">
-                <div className="pb-2 border-b border-[var(--border-subtle)] mb-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                      <Shield size={14} className="text-amber-500" />
-                      Custom Watermark & Branding
-                    </span>
-                    {(effectiveWatermark || watermarkImage) && (
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        Active
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                    Type custom text or upload a company logo/stamp
-                  </p>
-                </div>
-
-                {/* Tab Switcher: Text vs Image */}
-                <div className="flex rounded-lg bg-[var(--bg-surface-hover)] p-0.5 mb-2.5 border border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={() => setWatermarkTab('text')}
-                    className={clsx(
-                      "flex-1 flex items-center justify-center gap-1.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer",
-                      watermarkTab === 'text'
-                        ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs"
-                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    )}
-                  >
-                    <Type size={12} />
-                    <span>Text Watermark</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWatermarkTab('image')}
-                    className={clsx(
-                      "flex-1 flex items-center justify-center gap-1.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer",
-                      watermarkTab === 'image'
-                        ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs"
-                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    )}
-                  >
-                    <ImageIcon size={12} />
-                    <span>Upload Logo</span>
-                    {watermarkImage && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                  </button>
-                </div>
-
-                {/* Tab 1: Text Watermark */}
-                {watermarkTab === 'text' && (
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
-                        Custom Watermark Text
-                      </label>
-                      <input
-                        type="text"
-                        value={customWatermarkText}
-                        onChange={(e) => setCustomWatermarkText(e.target.value)}
-                        placeholder="e.g. CONFIDENTIAL, DRAFT, TRPW LEGAL..."
-                        className="w-full px-2.5 py-1.5 text-xs bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none placeholder:text-[var(--text-muted)]/60"
-                      />
-                    </div>
-
-                    {/* Quick Presets */}
-                    <div>
-                      <span className="block text-[10px] text-[var(--text-muted)] font-medium mb-1">
-                        Quick Presets:
-                      </span>
-                      <div className="flex flex-wrap gap-1">
-                        {['CONFIDENTIAL', 'DRAFT', 'INTERNAL ONLY', 'APPROVED', 'RESTRICTED'].map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setCustomWatermarkText(preset)}
-                            className={clsx(
-                              "px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all border cursor-pointer",
-                              customWatermarkText.toUpperCase() === preset
-                                ? "bg-[var(--accent)] text-white border-transparent"
-                                : "bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--accent)]"
-                            )}
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                        {customWatermarkText && (
-                          <button
-                            type="button"
-                            onClick={() => setCustomWatermarkText('')}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-red-500 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer"
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Tab 2: Image Watermark Upload */}
-                {watermarkTab === 'image' && (
-                  <div className="space-y-2">
-                    <input
-                      type="file"
-                      ref={watermarkFileInputRef}
-                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                      onChange={handleWatermarkImageUpload}
-                      className="hidden"
-                    />
-
-                    {watermarkImage ? (
-                      <div className="flex items-center gap-2.5 p-2 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] rounded-xl">
-                        <img
-                          src={watermarkImage}
-                          alt="Watermark preview"
-                          className="w-10 h-10 object-contain rounded-md bg-white/5 border border-[var(--border-subtle)] shrink-0"
-                        />
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-xs font-bold text-[var(--text-primary)] truncate" title={watermarkImageName}>
-                            {watermarkImageName || 'watermark.png'}
-                          </span>
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                            Logo active on exports
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setWatermarkImage(null);
-                            setWatermarkImageName('');
-                            if (watermarkFileInputRef.current) watermarkFileInputRef.current.value = '';
-                          }}
-                          className="p-1.5 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
-                          title="Remove image"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => watermarkFileInputRef.current?.click()}
-                        className="w-full flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--accent)] hover:bg-[var(--bg-surface-hover)] rounded-xl text-center cursor-pointer transition-all group"
-                      >
-                        <Upload size={18} className="text-[var(--accent)] mb-1 group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-bold text-[var(--text-primary)]">Upload Watermark Logo / Stamp</span>
-                        <span className="text-[10px] text-[var(--text-muted)] mt-0.5">PNG, JPG, SVG, WebP (auto-transparency)</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Governance Sign-off Checkbox */}
-                <div className="pt-2 mt-2 border-t border-[var(--border-subtle)]">
-                  <label 
-                    onClick={() => setIncludeSignoff(!includeSignoff)}
-                    className="flex items-center gap-2 text-[11px] font-medium text-[var(--text-primary)] cursor-pointer select-none"
-                  >
-                    {includeSignoff ? (
-                      <CheckSquare size={14} className="text-[var(--accent)]" />
-                    ) : (
-                      <Square size={14} className="text-[var(--text-muted)]" />
-                    )}
-                    <span>Include Governance Sign-off Table</span>
-                  </label>
-                  <p className="text-[9px] text-[var(--text-muted)] pl-5 mt-0.5">
-                    Appends executive approval & review matrix
-                  </p>
-                </div>
-
-                {/* Footer Controls */}
-                <div className="pt-2 mt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
-                  {(effectiveWatermark || watermarkImage) ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomWatermarkText('');
-                        setWatermarkImage(null);
-                        setWatermarkImageName('');
-                        if (watermarkFileInputRef.current) watermarkFileInputRef.current.value = '';
-                      }}
-                      className="text-[10px] text-red-500 hover:underline cursor-pointer"
-                    >
-                      Reset All
-                    </button>
-                  ) : <div />}
-                  <button
-                    type="button"
-                    onClick={() => setShowExportSettings(false)}
-                    className="px-3 py-1 text-[11px] font-bold text-white bg-[var(--accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-all cursor-pointer shadow-xs"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Export Dropdown / Buttons */}
-          <button
-            type="button"
-            onClick={() => handleExport('pdf')}
-            disabled={isExporting !== null}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/30 transition-all cursor-pointer"
-            title="Export as PDF (with TRPW branding and selected watermark)"
-          >
-            {isExporting === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleExport('excel')}
-            disabled={isExporting !== null}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 transition-all cursor-pointer"
-            title="Export as Excel spreadsheet"
-          >
-            {isExporting === 'excel' ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
-            <span className="hidden sm:inline">Excel</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleExport('docx')}
-            disabled={isExporting !== null}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30 transition-all cursor-pointer"
-            title="Export as Word document (.docx)"
-          >
-            {isExporting === 'docx' ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
-            <span className="hidden sm:inline">Word</span>
-          </button>
-
-          {/* Smart Email Launcher Button */}
-          <button
-            type="button"
-            onClick={() => setIsEmailModalOpen(true)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30 transition-all cursor-pointer"
-            title="Draft & Send as Email via Gmail or Outlook"
-          >
-            <Mail size={12} />
-            <span className="hidden sm:inline">Email</span>
           </button>
         </div>
 
@@ -865,13 +661,10 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
               <ChevronLeft size={13} />
             </button>
 
-            {/* Scrollable Chips Container with visible styled scrollbar */}
+            {/* Scrollable Chips Container */}
             <div 
               ref={refinementScrollRef}
-              className="flex items-center gap-1.5 overflow-x-auto text-[11px] scroll-smooth pr-6 py-1 select-none"
-              style={{
-                scrollbarWidth: 'thin',
-              }}
+              className="flex items-center gap-1.5 overflow-x-auto text-[11px] scroll-smooth pr-6 py-1 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             >
               {REFINEMENT_SUGGESTIONS.map((suggestion, idx) => (
                 <button
@@ -951,6 +744,22 @@ export const CanvasPanel: React.FC<CanvasPanelProps> = ({
         onApply={(filled) => {
           addVersionSnapshot(filled, 'Placeholders Filled');
         }}
+      />
+
+      {/* Custom Watermark & Branding Modal (Full Screen Centered Modal) */}
+      <WatermarkModal
+        isOpen={showExportSettings}
+        onClose={() => setShowExportSettings(false)}
+        customWatermarkText={customWatermarkText}
+        onUpdateCustomText={(txt) => setCustomWatermarkText(txt)}
+        watermarkImage={watermarkImage}
+        watermarkImageName={watermarkImageName}
+        onUpdateWatermarkImage={(dataUrl, name) => {
+          setWatermarkImage(dataUrl);
+          setWatermarkImageName(name);
+        }}
+        includeSignoff={includeSignoff}
+        onToggleSignoff={(include) => setIncludeSignoff(include)}
       />
     </div>
   );
